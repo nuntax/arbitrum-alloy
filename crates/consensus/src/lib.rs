@@ -13,6 +13,9 @@ extern crate alloc;
 pub mod header;
 /// Arbitrum receipt body and envelope types.
 pub mod receipt;
+/// reth `NodePrimitives` integration (requires `reth` feature).
+#[cfg(feature = "reth")]
+pub mod reth;
 /// Arbitrum transaction body, envelope, and helpers.
 pub mod transactions;
 

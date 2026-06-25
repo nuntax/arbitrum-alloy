@@ -42,10 +42,10 @@ pub struct MessageWithMetadata {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BatchDataStats {
     /// Total byte length of batch data.
-    #[serde(rename = "Length")]
+    #[serde(rename = "Length", alias = "length")]
     pub length: u64,
     /// Number of non-zero bytes in batch data.
-    #[serde(rename = "NonZeros")]
+    #[serde(rename = "NonZeros", alias = "nonzeros")]
     pub non_zeros: u64,
 }
 

@@ -120,7 +120,7 @@ pub enum ArbReceiptEnvelope<T = Log> {
 }
 
 impl<T> ArbReceiptEnvelope<T> {
-    const fn as_receipt_with_bloom(&self) -> &ReceiptWithBloom<ArbReceipt<T>> {
+    pub(crate) const fn as_receipt_with_bloom(&self) -> &ReceiptWithBloom<ArbReceipt<T>> {
         match self {
             Self::Legacy(r)
             | Self::Eip2930(r)

@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use crate::transactions::ArbTxType;
 
 /// Arbitrum L1 ETH deposit transaction (`type = 0x64`).
-#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxDeposit {
     /// Arbitrum chain identifier.
@@ -61,8 +61,22 @@ impl TxDeposit {
         request_id: FixedBytes<32>,
         from: Address,
     ) -> Result<Self, alloy_rlp::Error> {
-        let value: U256 = Decodable::decode(buf)?;
-        let to: Address = Decodable::decode(buf)?;
+        // Nitro sequencer EthDeposit payload layout is fixed-width bytes:
+        //   to (20 bytes) || value (32 bytes)
+        // It is not RLP-encoded.
+        if buf.len() < 52 {
+            return Err(alloy_rlp::Error::InputTooShort);
+        }
+
+        let to = Address::from_slice(&buf[..20]);
+        let value = U256::from_be_slice(&buf[20..52]);
+        *buf = &buf[52..];
+
+        // Keep decoding strict to catch malformed payloads early.
+        if !buf.is_empty() {
+            return Err(alloy_rlp::Error::UnexpectedLength);
+        }
+
         Ok(Self {
             chain_id,
             request_id,
@@ -342,13 +356,43 @@ impl Sealable for TxDeposit {
 
 #[cfg(test)]
 mod tests {
+    use super::TxDeposit;
     use alloy_network_primitives::ReceiptResponse;
-    use alloy_primitives::U256;
+    use alloy_primitives::{Address, FixedBytes, U256};
     use alloy_provider::Provider;
     use serial_test::serial;
     use test_utils::{DepositParams, TestContext};
 
     const ONE_MILLI_ETH: U256 = U256::from_limbs([1_000_000_000_000_000u64, 0, 0, 0]);
+
+    #[test]
+    fn sequencer_eth_deposit_decodes_fixed_width_payload() {
+        let to = Address::from_slice(&[
+            0x3f, 0x1e, 0xae, 0x7d, 0x46, 0xd8, 0x8f, 0x08, 0xfc, 0x2f, 0x8e, 0xd2, 0x7f, 0xcb,
+            0x2a, 0xb1, 0x83, 0xeb, 0x2d, 0x0e,
+        ]);
+        let value = U256::from(123_000_000_000_000_000u128);
+
+        let mut payload = Vec::with_capacity(52);
+        payload.extend_from_slice(to.as_slice());
+        payload.extend_from_slice(&value.to_be_bytes::<32>());
+
+        let chain_id = U256::from(42161u64);
+        let request_id = FixedBytes::repeat_byte(0x11);
+        let from = Address::from_slice(&[
+            0x50, 0x2f, 0xae, 0x7d, 0x46, 0xd8, 0x8f, 0x08, 0xfc, 0x2f, 0x8e, 0xd2, 0x7f, 0xcb,
+            0x2a, 0xb1, 0x83, 0xeb, 0x3e, 0x1f,
+        ]);
+
+        let tx = TxDeposit::decode_fields_sequencer(&mut &payload[..], chain_id, request_id, from)
+            .expect("sequencer payload should decode");
+
+        assert_eq!(tx.to, to);
+        assert_eq!(tx.value, value);
+        assert_eq!(tx.from, from);
+        assert_eq!(tx.chain_id, chain_id);
+        assert_eq!(tx.request_id, request_id);
+    }
 
     #[tokio::test]
     #[serial]

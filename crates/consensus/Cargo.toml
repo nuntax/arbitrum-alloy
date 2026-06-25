@@ -27,6 +27,7 @@ serde.workspace = true
 alloy-core.workspace = true
 alloy-contract.workspace = true
 arb-sequencer-network.workspace = true
+reth-primitives-traits = { version = "0.1.1", default-features = false, optional = true }
 
 [dev-dependencies]
 alloy-network-primitives.workspace = true
@@ -52,3 +53,4 @@ std = [
 ]
 serde = []
 k256 = ["alloy-consensus/k256"]
+reth = ["dep:reth-primitives-traits", "k256"]

@@ -20,7 +20,7 @@ use crate::transactions::{
     util::{decode, decode_rest},
 };
 /// <https://github.com/OffchainLabs/nitro/blob/23cae22e1f76cf3675f965d78e268fd2870d8708/arbos/parse_l2.go#L292>
-#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmitRetryableTx {
     #[serde(alias = "chain_id")]
@@ -45,8 +45,10 @@ pub struct SubmitRetryableTx {
     #[serde(default)]
     retry_data_size: U256,
     retry_data: Bytes,
-    /// Pre-built ABI-encoded calldata for `Transaction::input()`.
-    #[serde(skip)]
+    /// Pre-built ABI-encoded calldata for `Transaction::input()`. Serialized as
+    /// `input` (matching the RPC representation) so the tx survives a
+    /// serialize/deserialize round-trip; deserialize also accepts `data`.
+    #[serde(default, rename = "input", alias = "data")]
     calldata: Bytes,
 }
 

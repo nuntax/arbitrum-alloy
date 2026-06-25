@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::transactions::ArbTxType;
 
 /// Arbitrum L1-originated contract transaction (`type = 0x66`).
-#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxContract {
     /// Arbitrum chain identifier.

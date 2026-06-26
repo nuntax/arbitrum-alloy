@@ -14,7 +14,6 @@ use alloy_consensus::{Header as EthHeader, TxType, TypedTransaction};
 use alloy_network::{
     BuildResult, Network, NetworkTransactionBuilder, NetworkWallet, TransactionBuilderError,
 };
-use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::fillers::{
     ChainIdFiller, GasFiller, JoinFill, NonceFiller, RecommendedFillers,
 };

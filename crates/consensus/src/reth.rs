@@ -62,8 +62,12 @@ impl InMemorySize for ArbTxEnvelope {
 
 impl InMemorySize for ArbReceiptEnvelope<Log> {
     fn size(&self) -> usize {
-        use alloy_eips::Encodable2718;
-        self.encode_2718_len()
+        use alloy_consensus::TxReceipt;
+        // Landmine fix (Stage A): report the true in-memory footprint (used by reth for cache
+        // sizing), not the 2718-encoded length. That is the envelope struct itself plus the heap
+        // owned by the logs vector (each `Log` carries its own heap-allocated topics + data).
+        core::mem::size_of::<Self>()
+            + self.logs().iter().map(InMemorySize::size).sum::<usize>()
     }
 }
 
@@ -91,14 +95,23 @@ impl alloy_consensus::RlpDecodableReceipt for ArbReceiptEnvelope<Log> {
         buf: &mut &[u8],
     ) -> alloy_rlp::Result<alloy_consensus::ReceiptWithBloom<Self>> {
         use alloy_consensus::RlpDecodableReceipt;
-        // Decode the inner ArbReceipt<Log> and wrap in the Legacy variant.
-        // The type is recovered from context (e.g. block body iteration); we use Legacy
-        // as the default fallback, matching how alloy decodes bare RLP receipts.
-        let rwb =
+        // This is the *untyped* (bare-RLP) decode entry point — the legacy fallback used by
+        // `Decodable2718::fallback_decode`. A bare RLP receipt carries no 2718 type byte, so the
+        // only correct variant here is `Legacy` (typed receipts are recovered by `typed_decode`,
+        // which is already correct in `receipt.rs`).
+        //
+        // Landmine fix (Stage A): the inner `ArbReceipt<Log>` decode already produces the real
+        // `logs_bloom`; carry it through to the *outer* `ReceiptWithBloom` instead of zeroing it,
+        // so a round-trip (`rlp_encode_with_bloom` -> `rlp_decode_with_bloom`) and any
+        // bloom-dependent consumer sees the correct bloom.
+        let alloy_consensus::ReceiptWithBloom { receipt, logs_bloom } =
             <crate::ArbReceipt<Log> as RlpDecodableReceipt>::rlp_decode_with_bloom(buf)?;
         Ok(alloy_consensus::ReceiptWithBloom {
-            receipt: ArbReceiptEnvelope::Legacy(rwb),
-            logs_bloom: Default::default(),
+            receipt: ArbReceiptEnvelope::Legacy(alloy_consensus::ReceiptWithBloom {
+                receipt,
+                logs_bloom,
+            }),
+            logs_bloom,
         })
     }
 }

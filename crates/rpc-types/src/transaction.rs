@@ -158,6 +158,8 @@ mod tx_serde {
         block_number: Option<u64>,
         #[serde(default, with = "alloy_serde::quantity::opt")]
         transaction_index: Option<u64>,
+        #[serde(default, with = "alloy_serde::quantity::opt")]
+        block_timestamp: Option<u64>,
         #[serde(flatten)]
         other: OptionalFields,
     }
@@ -183,6 +185,7 @@ mod tx_serde {
                         block_number,
                         transaction_index,
                         effective_gas_price,
+                        block_timestamp,
                     },
                 request_id,
             } = value;
@@ -200,6 +203,7 @@ mod tx_serde {
                 block_hash,
                 block_number,
                 transaction_index,
+                block_timestamp,
                 other: OptionalFields {
                     from,
                     effective_gas_price,
@@ -218,6 +222,7 @@ mod tx_serde {
                 block_hash,
                 block_number,
                 transaction_index,
+                block_timestamp,
                 other,
             } = value;
 
@@ -238,6 +243,7 @@ mod tx_serde {
                     block_number,
                     transaction_index,
                     effective_gas_price,
+                    block_timestamp,
                 },
                 request_id: other.request_id,
             })

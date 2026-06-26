@@ -11,3 +11,6 @@ extern crate alloc;
 
 /// Arbitrum sequencer feed protocol modules.
 pub mod sequencer;
+
+/// Decode functions for sequencer feed messages.
+pub mod reader;

@@ -5,8 +5,18 @@ use crate::transactions::util::decode;
 use alloy_core::sol;
 use alloy_core::sol_types::SolCall;
 use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, U256};
-use arb_sequencer_network::sequencer::feed::BatchDataStats;
 use serde::{Deserialize, Serialize};
+
+/// Batch data tokenization stats used by newer batch posting reports.
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BatchDataStats {
+    /// Total byte length of batch data.
+    #[serde(rename = "Length", alias = "length")]
+    pub length: u64,
+    /// Number of non-zero bytes in batch data.
+    #[serde(rename = "NonZeros", alias = "nonzeros")]
+    pub non_zeros: u64,
+}
 sol! {
    #[sol(rpc)]
    "./src/interfaces/ArbosActs.sol"

@@ -1,0 +1,440 @@
+use alloy_consensus::TxEip1559;
+use alloy_consensus::TxEip2930;
+use alloy_consensus::TxEip7702;
+use alloy_consensus::TxLegacy;
+use alloy_consensus::transaction::RlpEcdsaDecodableTx;
+use alloy_primitives::Address;
+use alloy_primitives::B256;
+use alloy_primitives::ChainId;
+use alloy_primitives::FixedBytes;
+use alloy_primitives::U256;
+use alloy_primitives::hex::FromHex;
+use arb_alloy_consensus::transactions::ArbTxEnvelope;
+use arb_alloy_consensus::transactions::TxDeposit;
+use arb_alloy_consensus::transactions::batchpostingreport::decode_fields_sequencer as decode_batch_posting_report;
+use arb_alloy_consensus::transactions::submit_retryable::SubmitRetryableTx;
+use crate::sequencer::feed::L1IncomingMessage;
+use crate::sequencer::feed::MessageType;
+use base64::prelude::*;
+use eyre::Result;
+use eyre::eyre;
+use std::io::{Cursor, Read};
+use std::str::FromStr;
+
+/// Decode a single feed `L1IncomingMessage` into the transactions it produces, dispatching on the
+/// L1 message kind. Mirrors Nitro `arbos/parse_l2.go::ParseL2Transactions`.
+pub fn parse_message(
+    msg: L1IncomingMessage,
+    chain_id: ChainId,
+    version: u8,
+) -> Result<Vec<ArbTxEnvelope>> {
+    let msg_type = MessageType::from_u8(msg.header.kind);
+    tracing::debug!("Parsing message type: {:?}", msg_type);
+
+    match msg_type {
+        MessageType::L2Message => {
+            tracing::debug!("Decoding L2Message base64 content");
+            let mut buffer = match BASE64_STANDARD.decode(msg.l2msg) {
+                Ok(buf) => {
+                    tracing::debug!("Successfully decoded base64 of length: {}", buf.len());
+                    buf
+                }
+                Err(e) => {
+                    tracing::error!("Failed to decode base64: {}", e);
+                    return Err(e.into());
+                }
+            };
+
+            // Nitro rejects an over-large l2msg up front (before the kind switch).
+            if buffer.len() as u64 > MAX_L2_MESSAGE_SIZE {
+                return Err(eyre!("message too large"));
+            }
+
+            match parse_l2_msg(buffer.as_mut_slice(), 0) {
+                Ok(txs) => {
+                    tracing::debug!("Successfully parsed {} L2 transactions", txs.len());
+                    Ok(txs)
+                }
+                Err(e) => {
+                    tracing::error!("Failed to parse L2 message: {}", e);
+                    Err(e)
+                }
+            }
+        }
+        // Nitro returns `nil, nil` — the message produces no transactions.
+        MessageType::EndOfBlock => Ok(Vec::new()),
+        MessageType::EthDeposit => {
+            let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg)?;
+            let buffer = buffer_vec.as_mut_slice();
+            tracing::debug!("Buffer: {}", hex::encode(&buffer));
+            let tx = TxDeposit::decode_fields_sequencer(
+                &mut &*buffer,
+                U256::from(chain_id),
+                FixedBytes::from_hex(
+                    msg.header
+                        .request_id
+                        .as_str()
+                        .ok_or(eyre!("failed to deserialize request_id"))?,
+                )?,
+                msg.header.sender.parse()?,
+            )?;
+            tracing::debug!("Parsed TxDeposit: {:?}", tx);
+            tracing::debug!("TxDeposit hash: {}", tx.tx_hash());
+            Ok(vec![tx.into()])
+        }
+        MessageType::SubmitRetryable => {
+            let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg.clone())?;
+            let buffer = buffer_vec.as_mut_slice();
+            //log the whole message and the buffer
+            tracing::debug!("Retyrable message: {:?}", msg);
+            tracing::debug!("Retryable message buffer: {}", hex::encode(&buffer));
+
+            let tx = parse_submit_retryable(
+                &mut &*buffer,
+                chain_id,
+                Address::from_str(&msg.header.sender).unwrap(),
+                B256::from_hex(
+                    msg.header
+                        .request_id
+                        .as_str()
+                        .ok_or(eyre!("failed to deserialize request_id"))?,
+                )?,
+                U256::from(
+                    msg.header
+                        .base_fee_l1
+                        .as_u64()
+                        .ok_or(eyre!("failed to deserialize base fee l1"))?,
+                ),
+            )?;
+            Ok(vec![tx.into()])
+        }
+        MessageType::BatchPostingReport => {
+            let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg)?;
+            let buffer = buffer_vec.as_mut_slice();
+            tracing::debug!("BatchPostingReport Buffer: {}", hex::encode(&buffer));
+            tracing::debug!(
+                "Additional args: chain_id: {}, version: {}, batch_data_stats: {:?}, legacy_batch_gas_cost: {:?}",
+                chain_id,
+                version,
+                msg.batch_data_stats,
+                msg.legacy_batch_gas_cost
+            );
+            let internal_tx = decode_batch_posting_report(
+                &mut &*buffer,
+                chain_id,
+                version.into(),
+                msg.batch_data_stats,
+                msg.legacy_batch_gas_cost,
+            )?;
+            Ok(vec![internal_tx.into()])
+        }
+        // Nitro ignores rollup-event messages (returns an empty transaction list).
+        MessageType::RollupEvent => {
+            tracing::debug!("ignoring rollup event message");
+            Ok(Vec::new())
+        }
+        // Everything else is either tx-producing-but-unported (L2FundedByL1) or a hard Nitro error
+        // (Initialize, BatchForGasEstimation, Invalid, ...). Fail loudly: silently returning an
+        // empty list here would drop real transactions and diverge the state root.
+        // TODO(stage-e): implement L2FundedByL1 (deposit + parseUnsignedTx) when the corpus needs it.
+        _ => Err(eyre!("unsupported L1 message type: {:?}", msg_type)),
+    }
+}
+
+/// Decode the fixed-width fields of a `SubmitRetryable` L1 message body into a `SubmitRetryableTx`.
+/// Mirrors Nitro `arbos/parse_l2.go::parseSubmitRetryableMessage`.
+pub fn parse_submit_retryable(
+    msg: &mut &[u8],
+    chain_id: ChainId,
+    sender: Address,
+    request_id: B256,
+    l1_base_fee: U256,
+) -> Result<SubmitRetryableTx> {
+    let tx = SubmitRetryableTx::decode_fields_sequencer(
+        msg,
+        U256::from(chain_id),
+        request_id,
+        sender,
+        l1_base_fee,
+    )?;
+
+    tracing::debug!(
+        "Parsed TxSubmitRetryable: chain_id: {}, request_id: {}, sender: {}",
+        chain_id,
+        request_id,
+        sender
+    );
+    Ok(tx)
+}
+
+const MAX_BATCH_DEPTH: u32 = 16;
+const MAX_L2_MESSAGE_SIZE: u64 = 256 * 1024; // 256KB
+
+/// L2MessageKind represents the kind of message that can be received from the Arbitrum sequencer.
+///
+/// Discriminants MUST match Nitro `arbos/parse_l2.go` (`L2MessageKind_*`): `5` is reserved,
+/// `Heartbeat` is `6`, `SignedCompressedTx` is `7`, and `8` is reserved for BLS-signed batches.
+#[derive(Debug, PartialEq)]
+pub enum L2MessageKind {
+    /// Unsigned user transaction (Nitro `parseUnsignedTx`).
+    UnsignedUserTx = 0,
+    /// Contract transaction (Nitro `parseUnsignedTx`).
+    ContractTx = 1,
+    /// Non-mutating call. Unimplemented in the Nitro reference; only here for completeness.
+    NonmutatingCall = 2,
+    /// Batch transaction: a message that contains multiple (possibly nested) sub-messages.
+    Batch = 3,
+    /// Signed transaction: a single EIP-2718 signed transaction envelope.
+    SignedTx = 4,
+    // 5 is reserved.
+    /// Heartbeat message. Deprecated since 2022-08-08; not used in Arbitrum anymore.
+    Heartbeat = 6,
+    /// Signed compressed transaction. Unimplemented in the Nitro reference.
+    SignedCompressedTx = 7,
+    // 8 is reserved for BLS-signed batches.
+}
+
+impl TryFrom<u8> for L2MessageKind {
+    type Error = eyre::Report;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(L2MessageKind::UnsignedUserTx),
+            1 => Ok(L2MessageKind::ContractTx),
+            2 => Ok(L2MessageKind::NonmutatingCall),
+            3 => Ok(L2MessageKind::Batch),
+            4 => Ok(L2MessageKind::SignedTx),
+            6 => Ok(L2MessageKind::Heartbeat),
+            7 => Ok(L2MessageKind::SignedCompressedTx),
+            _ => Err(eyre::eyre!("Unsupported L2 message kind: {}", value)),
+        }
+    }
+}
+
+/// Recursively decode an L2 message body (a `kind` byte followed by its payload) into the
+/// transactions it carries. Mirrors Nitro `arbos/parse_l2.go::parseL2Message`.
+pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> {
+    if depth >= MAX_BATCH_DEPTH {
+        return Err(eyre::eyre!("Maximum batch depth exceeded: {}", depth));
+    }
+
+    // Nitro reads the kind byte via `rd.Read`, which errors on an empty reader.
+    if bytes.is_empty() {
+        return Err(eyre!("L2 message kind missing"));
+    }
+    let kind = L2MessageKind::try_from(bytes[0])?;
+    let mut transactions: Vec<ArbTxEnvelope> = Vec::new();
+
+    match kind {
+        // Nitro decodes these via `parseUnsignedTx` (threading poster/requestId). Not yet ported;
+        // error loudly rather than silently drop a transaction (a dropped tx => state divergence).
+        // TODO(stage-e): port `parseUnsignedTx` for UnsignedUserTx / ContractTx / L2FundedByL1.
+        L2MessageKind::UnsignedUserTx | L2MessageKind::ContractTx => {
+            return Err(eyre!(
+                "L2 message kind {:?} (parseUnsignedTx) not yet implemented",
+                kind
+            ));
+        }
+        // Nitro: "L2 message kind NonmutatingCall is unimplemented".
+        L2MessageKind::NonmutatingCall => {
+            return Err(eyre!("L2 message kind NonmutatingCall is unimplemented"));
+        }
+        L2MessageKind::Batch => {
+            let mut cursor = Cursor::new(&bytes[1..]); // skip the kind byte
+            loop {
+                // Each segment is an 8-byte big-endian length prefix followed by that many bytes.
+                let mut length_buf = [0u8; 8];
+                if cursor.read_exact(&mut length_buf).is_err() {
+                    break; // no further segments in the batch
+                }
+
+                let msg_len = u64::from_be_bytes(length_buf);
+                // Nitro's `BytestringFromReader` returns an error on an oversized length, which
+                // `parseL2Message` treats as end-of-batch (`return segments, nil`). Match that:
+                // stop gracefully rather than failing the whole message.
+                if msg_len > MAX_L2_MESSAGE_SIZE {
+                    break;
+                }
+
+                let mut msg_buf = vec![0u8; msg_len as usize];
+                if cursor.read_exact(&mut msg_buf).is_err() {
+                    break;
+                }
+
+                // recurse for nested batch / signed-tx segments
+                let nested_txs = parse_l2_msg(&mut msg_buf, depth + 1)?;
+                transactions.extend(nested_txs);
+            }
+        }
+        L2MessageKind::SignedTx => {
+            let tx = parse_raw_tx(&bytes[1..])?;
+            transactions.push(tx);
+        }
+        L2MessageKind::Heartbeat => {
+            // Deprecated. Nitro errors if `timestamp >= HeartbeatsDisabledAt` (2022-08-08) and
+            // otherwise does nothing; we lack the timestamp here and heartbeats never appear in
+            // the modern feed, so we ignore them. (Known minor divergence pre-2022.)
+        }
+        // Nitro: "L2 message kind SignedCompressedTx is unimplemented".
+        L2MessageKind::SignedCompressedTx => {
+            return Err(eyre!("L2 message kind SignedCompressedTx is unimplemented"));
+        }
+    }
+
+    Ok(transactions)
+}
+
+/// The EIP-2718 transaction types accepted inside an `L2MessageKind::SignedTx`.
+///
+/// Mirrors Nitro's SignedTx handling, which rejects blob transactions (`0x03`) and all Arbitrum
+/// types (`>= ArbitrumDepositTxType`, i.e. `0x64`): a signed user transaction may only be a
+/// standard Ethereum envelope.
+#[derive(Debug)]
+pub enum TxType {
+    /// Legacy transaction. Indicated by an RLP-list first byte (> 0x7f).
+    Legacy,
+    /// EIP-2930 transaction. Indicated by type byte 0x01.
+    Eip2930 = 1,
+    /// EIP-1559 transaction. Indicated by type byte 0x02.
+    Eip1559 = 2,
+    /// EIP-7702 transaction. Indicated by type byte 0x04.
+    Eip7702 = 4,
+}
+
+impl TxType {
+    /// Converts an EIP-2718 type byte to a `TxType`, rejecting blob and Arbitrum types.
+    pub fn from_u8(value: u8) -> Result<Self> {
+        match value {
+            x if x > 0x7f => Ok(TxType::Legacy),
+            1 => Ok(TxType::Eip2930),
+            2 => Ok(TxType::Eip1559),
+            4 => Ok(TxType::Eip7702),
+            _ => Err(eyre::eyre!(
+                "Invalid signed-tx type: {}. Nitro rejects blob (0x03) and Arbitrum (>=0x64) types.",
+                value
+            )),
+        }
+    }
+}
+
+fn parse_raw_tx(bytes: &[u8]) -> Result<ArbTxEnvelope> {
+    let tx_type = bytes.first().ok_or(eyre!("Missing transaction type"))?;
+    let tx_type = TxType::from_u8(*tx_type)?;
+    let tx: ArbTxEnvelope = match tx_type {
+        TxType::Legacy => ArbTxEnvelope::Legacy(TxLegacy::rlp_decode_signed(&mut &bytes[0..])?),
+        TxType::Eip2930 => ArbTxEnvelope::Eip2930(TxEip2930::rlp_decode_signed(&mut &bytes[1..])?),
+        TxType::Eip1559 => ArbTxEnvelope::Eip1559(TxEip1559::rlp_decode_signed(&mut &bytes[1..])?),
+        TxType::Eip7702 => ArbTxEnvelope::Eip7702(TxEip7702::rlp_decode_signed(&mut &bytes[1..])?),
+    };
+
+    Ok(tx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sequencer::feed::{Header, L1IncomingMessage};
+
+    const CHAIN_ID: ChainId = 42161;
+
+    fn msg_with_kind(kind: u8) -> L1IncomingMessage {
+        L1IncomingMessage {
+            header: Header { kind, ..Default::default() },
+            ..Default::default()
+        }
+    }
+
+    /// `L2MessageKind` discriminants must match Nitro `L2MessageKind_*`: 5 reserved, Heartbeat=6,
+    /// SignedCompressedTx=7. (The legacy port had Heartbeat=5/SignedCompressedTx=6 — off by one.)
+    #[test]
+    fn l2_message_kind_discriminants_match_nitro() {
+        assert_eq!(L2MessageKind::UnsignedUserTx as u8, 0);
+        assert_eq!(L2MessageKind::ContractTx as u8, 1);
+        assert_eq!(L2MessageKind::NonmutatingCall as u8, 2);
+        assert_eq!(L2MessageKind::Batch as u8, 3);
+        assert_eq!(L2MessageKind::SignedTx as u8, 4);
+        assert_eq!(L2MessageKind::Heartbeat as u8, 6);
+        assert_eq!(L2MessageKind::SignedCompressedTx as u8, 7);
+    }
+
+    #[test]
+    fn l2_message_kind_try_from_matches_nitro() {
+        assert_eq!(L2MessageKind::try_from(4).unwrap(), L2MessageKind::SignedTx);
+        assert!(L2MessageKind::try_from(5).is_err(), "5 is reserved");
+        assert_eq!(L2MessageKind::try_from(6).unwrap(), L2MessageKind::Heartbeat);
+        assert_eq!(
+            L2MessageKind::try_from(7).unwrap(),
+            L2MessageKind::SignedCompressedTx
+        );
+        assert!(L2MessageKind::try_from(8).is_err(), "8 is reserved (BLS)");
+    }
+
+    #[test]
+    fn parse_l2_msg_empty_is_error_not_panic() {
+        assert!(parse_l2_msg(&mut [], 0).is_err());
+    }
+
+    #[test]
+    fn parse_l2_msg_heartbeat_yields_no_txs() {
+        assert!(parse_l2_msg(&mut [6], 0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_l2_msg_unported_and_unimplemented_kinds_error() {
+        for kind in [0u8 /* UnsignedUserTx */, 1 /* ContractTx */, 2 /* Nonmutating */, 7 /* Compressed */] {
+            assert!(parse_l2_msg(&mut [kind], 0).is_err(), "kind {kind} must error");
+        }
+    }
+
+    /// Batch framing (8-byte BE length prefix + payload) + recursion + Heartbeat=6, end to end.
+    #[test]
+    fn parse_l2_msg_batch_of_heartbeat_segment() {
+        // kind=Batch(3), one segment of length 1 whose body is Heartbeat(6).
+        let mut bytes = vec![3u8, 0, 0, 0, 0, 0, 0, 0, 1, 6];
+        assert!(parse_l2_msg(&mut bytes, 0).unwrap().is_empty());
+    }
+
+    /// An oversized segment length must stop the batch gracefully (Nitro `return segments, nil`),
+    /// not hard-error.
+    #[test]
+    fn parse_l2_msg_batch_oversize_segment_breaks_gracefully() {
+        let mut bytes = vec![3u8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+        assert!(parse_l2_msg(&mut bytes, 0).unwrap().is_empty());
+    }
+
+    /// A SignedTx must reject blob (0x03) and Arbitrum (>=0x64) inner types, matching Nitro.
+    #[test]
+    fn signed_tx_rejects_blob_and_arbitrum_types() {
+        assert!(parse_l2_msg(&mut [4, 0x03], 0).is_err(), "blob rejected");
+        assert!(parse_l2_msg(&mut [4, 0x64], 0).is_err(), "deposit rejected");
+        assert!(parse_l2_msg(&mut [4], 0).is_err(), "missing inner type");
+    }
+
+    #[test]
+    fn parse_message_end_of_block_is_empty_not_panic() {
+        let m = msg_with_kind(MessageType::EndOfBlock as u8);
+        assert!(parse_message(m, CHAIN_ID, 0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_message_rollup_event_is_empty() {
+        let m = msg_with_kind(MessageType::RollupEvent as u8);
+        assert!(parse_message(m, CHAIN_ID, 0).unwrap().is_empty());
+    }
+
+    /// Tx-producing-but-unported and Nitro-error types must fail loudly, never silently drop.
+    #[test]
+    fn parse_message_unsupported_types_error() {
+        for kind in [
+            MessageType::L2FundedByL1 as u8,
+            MessageType::Initialize as u8,
+            MessageType::BatchForGasEstimation as u8,
+            MessageType::Invalid as u8,
+        ] {
+            assert!(
+                parse_message(msg_with_kind(kind), CHAIN_ID, 0).is_err(),
+                "kind {kind} must error, not return empty"
+            );
+        }
+    }
+}

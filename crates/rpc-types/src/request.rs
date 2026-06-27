@@ -15,6 +15,18 @@ pub struct ArbTransactionRequest {
     pub inner: alloy_rpc_types_eth::TransactionRequest,
 }
 
+impl AsRef<alloy_rpc_types_eth::TransactionRequest> for ArbTransactionRequest {
+    fn as_ref(&self) -> &alloy_rpc_types_eth::TransactionRequest {
+        &self.inner
+    }
+}
+
+impl AsMut<alloy_rpc_types_eth::TransactionRequest> for ArbTransactionRequest {
+    fn as_mut(&mut self) -> &mut alloy_rpc_types_eth::TransactionRequest {
+        &mut self.inner
+    }
+}
+
 impl From<alloy_rpc_types_eth::TransactionRequest> for ArbTransactionRequest {
     fn from(inner: alloy_rpc_types_eth::TransactionRequest) -> Self {
         Self { inner }

@@ -133,8 +133,15 @@ pub fn parse_message(
             tracing::debug!("ignoring rollup event message");
             Ok(Vec::new())
         }
+        // The Initialize message (kind 11) carries ArbOS genesis data; it produces no L2
+        // transactions. Callers that need the genesis payload should call
+        // `init_message::parse_init_message` directly.
+        MessageType::Initialize => {
+            tracing::debug!("ignoring Initialize message (no L2 transactions)");
+            Ok(Vec::new())
+        }
         // Everything else is either tx-producing-but-unported (L2FundedByL1) or a hard Nitro error
-        // (Initialize, BatchForGasEstimation, Invalid, ...). Fail loudly: silently returning an
+        // (BatchForGasEstimation, Invalid, ...). Fail loudly: silently returning an
         // empty list here would drop real transactions and diverge the state root.
         // TODO(stage-e): implement L2FundedByL1 (deposit + parseUnsignedTx) when the corpus needs it.
         _ => Err(eyre!("unsupported L1 message type: {:?}", msg_type)),
@@ -422,12 +429,22 @@ mod tests {
         assert!(parse_message(m, CHAIN_ID, 0).unwrap().is_empty());
     }
 
+    /// Initialize (kind 11) produces no L2 transactions — same as EndOfBlock.
+    /// Callers that need genesis data use `init_message::parse_init_message` directly.
+    #[test]
+    fn parse_message_initialize_is_empty_not_error() {
+        let m = msg_with_kind(MessageType::Initialize as u8);
+        assert!(
+            parse_message(m, CHAIN_ID, 0).unwrap().is_empty(),
+            "Initialize must return empty Vec, not error"
+        );
+    }
+
     /// Tx-producing-but-unported and Nitro-error types must fail loudly, never silently drop.
     #[test]
     fn parse_message_unsupported_types_error() {
         for kind in [
             MessageType::L2FundedByL1 as u8,
-            MessageType::Initialize as u8,
             MessageType::BatchForGasEstimation as u8,
             MessageType::Invalid as u8,
         ] {

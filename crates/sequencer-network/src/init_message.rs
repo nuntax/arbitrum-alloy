@@ -7,7 +7,7 @@ use base64::prelude::*;
 use eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::sequencer::feed::{L1IncomingMessage, MessageType};
+use crate::sequencer::feed::{Header, L1IncomingMessage, MessageType};
 
 /// Default initial L1 base fee: 50 GWei (matches Nitro `DefaultInitialL1BaseFee`).
 pub const DEFAULT_INITIAL_L1_BASE_FEE: u64 = 50_000_000_000;
@@ -150,6 +150,21 @@ pub fn parse_init_message(msg: &L1IncomingMessage) -> Result<ParsedInitMessage> 
     })
 }
 
+/// Parse an Initialize message from its raw (already base64-decoded) body bytes.
+///
+/// [`parse_init_message`] takes the feed-shaped [`L1IncomingMessage`] whose `l2msg` is base64;
+/// when the body comes straight off L1 (a delayed-inbox message reconstructed from calldata) it
+/// is raw bytes, so this wraps it in the minimal message shape and delegates. `kind` must be the
+/// delayed message's header kind (11 for Initialize).
+pub fn parse_init_message_from_body(kind: u8, body: &[u8]) -> Result<ParsedInitMessage> {
+    let msg = L1IncomingMessage {
+        header: Header { kind, ..Default::default() },
+        l2msg: BASE64_STANDARD.encode(body),
+        ..Default::default()
+    };
+    parse_init_message(&msg)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,6 +248,24 @@ mod tests {
             json.to_vec(),
             "serialized_chain_config mismatch"
         );
+    }
+
+    /// The raw-body entry point (used when the Initialize message comes straight off L1 as a
+    /// delayed-inbox message) must parse identically to the base64/feed-shaped path.
+    #[test]
+    fn parse_init_from_body_matches_wrapped() {
+        let json = br#"{"chainId":412346,"arbitrum":{"InitialArbOSVersion":32,"InitialChainOwner":"0x00000000000000000000000000000000000a11ce","GenesisBlockNum":0,"AllowDebugPrecompiles":true}}"#;
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&chain_id_bytes(412346));
+        payload.push(1u8);
+        payload.extend_from_slice(&u256_be_bytes(70_000_000_000));
+        payload.extend_from_slice(json);
+
+        let via_body =
+            parse_init_message_from_body(MessageType::Initialize as u8, &payload).expect("parse body");
+        let via_wrapped = parse_init_message(&init_msg_from_bytes(&payload)).expect("parse wrapped");
+        assert_eq!(via_body, via_wrapped);
+        assert_eq!(via_body.initial_l1_base_fee, U256::from(70_000_000_000u64));
     }
 
     /// Version-0 message: chain_id + version byte + JSON config.

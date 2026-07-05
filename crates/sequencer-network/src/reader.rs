@@ -5,12 +5,17 @@ use alloy_consensus::TxLegacy;
 use alloy_consensus::transaction::RlpEcdsaDecodableTx;
 use alloy_primitives::Address;
 use alloy_primitives::B256;
+use alloy_primitives::Bytes;
 use alloy_primitives::ChainId;
 use alloy_primitives::FixedBytes;
+use alloy_primitives::TxKind;
 use alloy_primitives::U256;
 use alloy_primitives::hex::FromHex;
+use alloy_primitives::keccak256;
 use arb_alloy_consensus::transactions::ArbTxEnvelope;
+use arb_alloy_consensus::transactions::TxContract;
 use arb_alloy_consensus::transactions::TxDeposit;
+use arb_alloy_consensus::transactions::TxUnsigned;
 use arb_alloy_consensus::transactions::batchpostingreport::decode_fields_sequencer as decode_batch_posting_report;
 use arb_alloy_consensus::transactions::submit_retryable::SubmitRetryableTx;
 use crate::sequencer::feed::L1IncomingMessage;
@@ -50,7 +55,17 @@ pub fn parse_message(
                 return Err(eyre!("message too large"));
             }
 
-            match parse_l2_msg(buffer.as_mut_slice(), 0) {
+            // Poster = header sender; request id is present only for L1-originated L2 messages
+            // (`None` for ordinary sequencer messages). Both are threaded into `parseUnsignedTx`.
+            let poster: Address = msg
+                .header
+                .sender
+                .parse()
+                .map_err(|_| eyre!("L2Message: invalid poster/sender address"))?;
+            let request_id: Option<B256> =
+                msg.header.request_id.as_str().and_then(|s| FixedBytes::from_hex(s).ok());
+
+            match parse_l2_msg(buffer.as_mut_slice(), 0, poster, request_id, chain_id) {
                 Ok(txs) => {
                     tracing::debug!("Successfully parsed {} L2 transactions", txs.len());
                     Ok(txs)
@@ -220,7 +235,18 @@ impl TryFrom<u8> for L2MessageKind {
 
 /// Recursively decode an L2 message body (a `kind` byte followed by its payload) into the
 /// transactions it carries. Mirrors Nitro `arbos/parse_l2.go::parseL2Message`.
-pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> {
+///
+/// `poster` is the message header's sender (used as the `From` of unsigned/contract txs);
+/// `request_id` is the header's L1 request id (present for L1-originated messages, `None` for
+/// ordinary sequencer messages), threaded into nested batch segments as
+/// `keccak(request_id, index)` to match Nitro.
+pub fn parse_l2_msg(
+    bytes: &mut [u8],
+    depth: u32,
+    poster: Address,
+    request_id: Option<B256>,
+    chain_id: ChainId,
+) -> Result<Vec<ArbTxEnvelope>> {
     if depth >= MAX_BATCH_DEPTH {
         return Err(eyre::eyre!("Maximum batch depth exceeded: {}", depth));
     }
@@ -233,14 +259,11 @@ pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> 
     let mut transactions: Vec<ArbTxEnvelope> = Vec::new();
 
     match kind {
-        // Nitro decodes these via `parseUnsignedTx` (threading poster/requestId). Not yet ported;
-        // error loudly rather than silently drop a transaction (a dropped tx => state divergence).
-        // TODO(stage-e): port `parseUnsignedTx` for UnsignedUserTx / ContractTx / L2FundedByL1.
-        L2MessageKind::UnsignedUserTx | L2MessageKind::ContractTx => {
-            return Err(eyre!(
-                "L2 message kind {:?} (parseUnsignedTx) not yet implemented",
-                kind
-            ));
+        // Nitro `parseUnsignedTx`: both kinds share a fixed-width layout and differ only in the
+        // nonce field (UnsignedUserTx) vs the L1 request id (ContractTx).
+        tk @ (L2MessageKind::UnsignedUserTx | L2MessageKind::ContractTx) => {
+            let tx = parse_unsigned_tx(&bytes[1..], poster, request_id, chain_id, &tk)?;
+            transactions.push(tx);
         }
         // Nitro: "L2 message kind NonmutatingCall is unimplemented".
         L2MessageKind::NonmutatingCall => {
@@ -248,6 +271,7 @@ pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> 
         }
         L2MessageKind::Batch => {
             let mut cursor = Cursor::new(&bytes[1..]); // skip the kind byte
+            let mut index: u64 = 0;
             loop {
                 // Each segment is an 8-byte big-endian length prefix followed by that many bytes.
                 let mut length_buf = [0u8; 8];
@@ -268,9 +292,19 @@ pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> 
                     break;
                 }
 
+                // Nested request id per Nitro `parseL2Message`: keccak(request_id, index) for each
+                // segment, so a nested ContractTx derives the right id. `None` stays `None`.
+                let nested_request_id = request_id.map(|rid| {
+                    let mut buf = [0u8; 64];
+                    buf[..32].copy_from_slice(rid.as_slice());
+                    buf[32..].copy_from_slice(&U256::from(index).to_be_bytes::<32>());
+                    keccak256(buf)
+                });
                 // recurse for nested batch / signed-tx segments
-                let nested_txs = parse_l2_msg(&mut msg_buf, depth + 1)?;
+                let nested_txs =
+                    parse_l2_msg(&mut msg_buf, depth + 1, poster, nested_request_id, chain_id)?;
                 transactions.extend(nested_txs);
+                index += 1;
             }
         }
         L2MessageKind::SignedTx => {
@@ -289,6 +323,73 @@ pub fn parse_l2_msg(bytes: &mut [u8], depth: u32) -> Result<Vec<ArbTxEnvelope>> 
     }
 
     Ok(transactions)
+}
+
+/// Decode an unsigned-tx L2 message body (Nitro `arbos/parse_l2.go::parseUnsignedTx`). `tx_kind`
+/// selects `UnsignedUserTx` (carries a nonce; `From` is the poster) or `ContractTx` (carries the
+/// L1 request id, no nonce). `body` is the message payload after the kind byte; the layout is
+/// fixed-width big-endian:
+///   gasLimit(32) | maxFeePerGas(32) | [nonce(32) — UnsignedUserTx only] | to(32, address in the
+///   low 20 bytes; zero => contract creation) | value(32) | calldata(remaining bytes).
+fn parse_unsigned_tx(
+    mut body: &[u8],
+    poster: Address,
+    request_id: Option<B256>,
+    chain_id: ChainId,
+    tx_kind: &L2MessageKind,
+) -> Result<ArbTxEnvelope> {
+    fn take<'a>(cur: &mut &'a [u8], n: usize) -> Result<&'a [u8]> {
+        if cur.len() < n {
+            return Err(eyre!("unsigned tx: truncated field (need {n}, have {})", cur.len()));
+        }
+        let (head, tail) = cur.split_at(n);
+        *cur = tail;
+        Ok(head)
+    }
+
+    let gas_limit = u64::try_from(U256::from_be_slice(take(&mut body, 32)?))
+        .map_err(|_| eyre!("unsigned user tx gas limit >= 2^64"))?;
+    let gas_fee_cap = U256::from_be_slice(take(&mut body, 32)?);
+    let nonce = if *tx_kind == L2MessageKind::UnsignedUserTx {
+        u64::try_from(U256::from_be_slice(take(&mut body, 32)?))
+            .map_err(|_| eyre!("unsigned user tx nonce >= 2^64"))?
+    } else {
+        0
+    };
+    // The target address is right-aligned in a 32-byte word; the zero address means create.
+    let to_word = take(&mut body, 32)?;
+    let to_addr = Address::from_slice(&to_word[12..32]);
+    let to = if to_addr.is_zero() { TxKind::Create } else { TxKind::Call(to_addr) };
+    let value = U256::from_be_slice(take(&mut body, 32)?);
+    let input = Bytes::copy_from_slice(body); // remainder is calldata
+
+    let env: ArbTxEnvelope = match tx_kind {
+        L2MessageKind::UnsignedUserTx => TxUnsigned {
+            chain_id: U256::from(chain_id),
+            from: poster,
+            nonce,
+            gas_fee_cap,
+            gas_limit,
+            to,
+            value,
+            input,
+        }
+        .into(),
+        L2MessageKind::ContractTx => TxContract {
+            chain_id: U256::from(chain_id),
+            request_id: request_id
+                .ok_or_else(|| eyre!("cannot issue contract tx without L1 request id"))?,
+            from: poster,
+            gas_fee_cap,
+            gas_limit,
+            to,
+            value,
+            input,
+        }
+        .into(),
+        _ => return Err(eyre!("invalid L2 tx type in parseUnsignedTx")),
+    };
+    Ok(env)
 }
 
 /// The EIP-2718 transaction types accepted inside an `L2MessageKind::SignedTx`.
@@ -378,18 +479,75 @@ mod tests {
 
     #[test]
     fn parse_l2_msg_empty_is_error_not_panic() {
-        assert!(parse_l2_msg(&mut [], 0).is_err());
+        assert!(parse_l2_msg(&mut [], 0, Address::ZERO, None, CHAIN_ID).is_err());
     }
 
     #[test]
     fn parse_l2_msg_heartbeat_yields_no_txs() {
-        assert!(parse_l2_msg(&mut [6], 0).unwrap().is_empty());
+        assert!(parse_l2_msg(&mut [6], 0, Address::ZERO, None, CHAIN_ID).unwrap().is_empty());
     }
 
     #[test]
-    fn parse_l2_msg_unported_and_unimplemented_kinds_error() {
-        for kind in [0u8 /* UnsignedUserTx */, 1 /* ContractTx */, 2 /* Nonmutating */, 7 /* Compressed */] {
-            assert!(parse_l2_msg(&mut [kind], 0).is_err(), "kind {kind} must error");
+    fn parse_l2_msg_unimplemented_kinds_error() {
+        // Genuinely unimplemented in Nitro too: NonmutatingCall(2) and SignedCompressedTx(7).
+        for kind in [2u8, 7] {
+            assert!(
+                parse_l2_msg(&mut [kind], 0, Address::ZERO, None, CHAIN_ID).is_err(),
+                "kind {kind} must error"
+            );
+        }
+    }
+
+    /// Build the fixed-width `parseUnsignedTx` body: gasLimit|maxFee|[nonce]|to|value|calldata.
+    fn unsigned_body(kind: u8, gas: u64, max_fee: u64, nonce: u64, to: Address, value: u64, data: &[u8]) -> Vec<u8> {
+        let mut b = vec![kind];
+        let word = |x: u64| -> [u8; 32] { U256::from(x).to_be_bytes() };
+        b.extend_from_slice(&word(gas));
+        b.extend_from_slice(&word(max_fee));
+        if kind == 0 {
+            b.extend_from_slice(&word(nonce));
+        }
+        let mut to_word = [0u8; 32];
+        to_word[12..].copy_from_slice(to.as_slice());
+        b.extend_from_slice(&to_word);
+        b.extend_from_slice(&word(value));
+        b.extend_from_slice(data);
+        b
+    }
+
+    #[test]
+    fn parse_unsigned_user_tx_roundtrips() {
+        let poster = Address::repeat_byte(0xab);
+        let to = Address::repeat_byte(0xcd);
+        let mut body = unsigned_body(0, 21_000, 1_000_000_000, 7, to, 42, b"hi");
+        let txs = parse_l2_msg(&mut body, 0, poster, None, CHAIN_ID).unwrap();
+        assert_eq!(txs.len(), 1);
+        match &txs[0] {
+            ArbTxEnvelope::Unsigned(tx) => {
+                assert_eq!(tx.from, poster);
+                assert_eq!(tx.nonce, 7);
+                assert_eq!(tx.gas_limit, 21_000);
+                assert_eq!(tx.to, TxKind::Call(to));
+                assert_eq!(tx.value, U256::from(42));
+                assert_eq!(&tx.input[..], b"hi");
+            }
+            other => panic!("expected Unsigned, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_contract_tx_needs_request_id() {
+        let mut body = unsigned_body(1, 21_000, 1, 0, Address::ZERO, 0, b"");
+        // ContractTx (kind 1) with no request id errors, matching Nitro.
+        assert!(parse_l2_msg(&mut body.clone(), 0, Address::ZERO, None, CHAIN_ID).is_err());
+        // With a request id it decodes; zero `to` means contract creation.
+        let txs = parse_l2_msg(&mut body, 0, Address::ZERO, Some(B256::repeat_byte(9)), CHAIN_ID).unwrap();
+        match &txs[0] {
+            ArbTxEnvelope::Contract(tx) => {
+                assert_eq!(tx.request_id, B256::repeat_byte(9));
+                assert_eq!(tx.to, TxKind::Create);
+            }
+            other => panic!("expected Contract, got {other:?}"),
         }
     }
 
@@ -398,7 +556,7 @@ mod tests {
     fn parse_l2_msg_batch_of_heartbeat_segment() {
         // kind=Batch(3), one segment of length 1 whose body is Heartbeat(6).
         let mut bytes = vec![3u8, 0, 0, 0, 0, 0, 0, 0, 1, 6];
-        assert!(parse_l2_msg(&mut bytes, 0).unwrap().is_empty());
+        assert!(parse_l2_msg(&mut bytes, 0, Address::ZERO, None, CHAIN_ID).unwrap().is_empty());
     }
 
     /// An oversized segment length must stop the batch gracefully (Nitro `return segments, nil`),
@@ -406,15 +564,15 @@ mod tests {
     #[test]
     fn parse_l2_msg_batch_oversize_segment_breaks_gracefully() {
         let mut bytes = vec![3u8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
-        assert!(parse_l2_msg(&mut bytes, 0).unwrap().is_empty());
+        assert!(parse_l2_msg(&mut bytes, 0, Address::ZERO, None, CHAIN_ID).unwrap().is_empty());
     }
 
     /// A SignedTx must reject blob (0x03) and Arbitrum (>=0x64) inner types, matching Nitro.
     #[test]
     fn signed_tx_rejects_blob_and_arbitrum_types() {
-        assert!(parse_l2_msg(&mut [4, 0x03], 0).is_err(), "blob rejected");
-        assert!(parse_l2_msg(&mut [4, 0x64], 0).is_err(), "deposit rejected");
-        assert!(parse_l2_msg(&mut [4], 0).is_err(), "missing inner type");
+        assert!(parse_l2_msg(&mut [4, 0x03], 0, Address::ZERO, None, CHAIN_ID).is_err(), "blob rejected");
+        assert!(parse_l2_msg(&mut [4, 0x64], 0, Address::ZERO, None, CHAIN_ID).is_err(), "deposit rejected");
+        assert!(parse_l2_msg(&mut [4], 0, Address::ZERO, None, CHAIN_ID).is_err(), "missing inner type");
     }
 
     #[test]

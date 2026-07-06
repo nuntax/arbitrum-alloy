@@ -445,7 +445,7 @@ mod tests {
     async fn submit_retryable_produces_submit_retryable_tx_on_l2()
     -> Result<(), Box<dyn std::error::Error>> {
         let Some(ctx) = TestContext::try_from_env().await else {
-            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set — skipping");
+            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set, skipping");
             return Ok(());
         };
 

@@ -280,7 +280,7 @@ mod tests {
     async fn send_contract_tx_produces_contract_tx_on_l2() -> Result<(), Box<dyn std::error::Error>>
     {
         let Some(ctx) = TestContext::try_from_env().await else {
-            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set — skipping");
+            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set, skipping");
             return Ok(());
         };
 

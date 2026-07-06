@@ -1,7 +1,7 @@
 alloy_core::sol! {
     /// NodeInterface: virtual meta-contract for node-level queries.
     ///
-    /// This is not a real on-chain contract — calls are intercepted and
+    /// This is not a real on-chain contract, calls are intercepted and
     /// handled by the node software. Useful for gas estimation, batch
     /// queries, and L1 confirmation checks.
     ///
@@ -74,7 +74,7 @@ mod tests {
         let rpc = match std::env::var("ARBITRUM_RPC") {
             Ok(v) if !v.trim().is_empty() => v,
             _ => {
-                eprintln!("ARBITRUM_RPC not set — skipping");
+                eprintln!("ARBITRUM_RPC not set, skipping");
                 return Ok(());
             }
         };

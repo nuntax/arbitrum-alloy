@@ -76,7 +76,7 @@ pub fn parse_message(
                 }
             }
         }
-        // Nitro returns `nil, nil` — the message produces no transactions.
+        // Nitro returns `nil, nil`, the message produces no transactions.
         MessageType::EndOfBlock => Ok(Vec::new()),
         MessageType::EthDeposit => {
             let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg)?;
@@ -100,7 +100,6 @@ pub fn parse_message(
         MessageType::SubmitRetryable => {
             let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg.clone())?;
             let buffer = buffer_vec.as_mut_slice();
-            //log the whole message and the buffer
             tracing::debug!("Retyrable message: {:?}", msg);
             tracing::debug!("Retryable message buffer: {}", hex::encode(&buffer));
 
@@ -158,7 +157,7 @@ pub fn parse_message(
         // Everything else is either tx-producing-but-unported (L2FundedByL1) or a hard Nitro error
         // (BatchForGasEstimation, Invalid, ...). Fail loudly: silently returning an
         // empty list here would drop real transactions and diverge the state root.
-        // TODO(stage-e): implement L2FundedByL1 (deposit + parseUnsignedTx) when the corpus needs it.
+        // TODO: implement L2FundedByL1 (deposit + parseUnsignedTx) when the corpus needs it.
         _ => Err(eyre!("unsupported L1 message type: {:?}", msg_type)),
     }
 }
@@ -329,7 +328,7 @@ pub fn parse_l2_msg(
 /// selects `UnsignedUserTx` (carries a nonce; `From` is the poster) or `ContractTx` (carries the
 /// L1 request id, no nonce). `body` is the message payload after the kind byte; the layout is
 /// fixed-width big-endian:
-///   gasLimit(32) | maxFeePerGas(32) | [nonce(32) — UnsignedUserTx only] | to(32, address in the
+///   gasLimit(32) | maxFeePerGas(32) | [nonce(32), UnsignedUserTx only] | to(32, address in the
 ///   low 20 bytes; zero => contract creation) | value(32) | calldata(remaining bytes).
 fn parse_unsigned_tx(
     mut body: &[u8],
@@ -453,7 +452,7 @@ mod tests {
     }
 
     /// `L2MessageKind` discriminants must match Nitro `L2MessageKind_*`: 5 reserved, Heartbeat=6,
-    /// SignedCompressedTx=7. (The legacy port had Heartbeat=5/SignedCompressedTx=6 — off by one.)
+    /// SignedCompressedTx=7.
     #[test]
     fn l2_message_kind_discriminants_match_nitro() {
         assert_eq!(L2MessageKind::UnsignedUserTx as u8, 0);
@@ -587,7 +586,7 @@ mod tests {
         assert!(parse_message(m, CHAIN_ID, 0).unwrap().is_empty());
     }
 
-    /// Initialize (kind 11) produces no L2 transactions — same as EndOfBlock.
+    /// Initialize (kind 11) produces no L2 transactions, same as EndOfBlock.
     /// Callers that need genesis data use `init_message::parse_init_message` directly.
     #[test]
     fn parse_message_initialize_is_empty_not_error() {

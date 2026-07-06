@@ -92,7 +92,7 @@ mod tests {
         let rpc = match std::env::var("ARBITRUM_RPC") {
             Ok(v) if !v.trim().is_empty() => v,
             _ => {
-                eprintln!("ARBITRUM_RPC not set — skipping");
+                eprintln!("ARBITRUM_RPC not set, skipping");
                 return Ok(());
             }
         };

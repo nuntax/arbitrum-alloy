@@ -48,7 +48,7 @@ impl TryIntoSimTx<ArbTxEnvelope> for ArbTransactionRequest {
             ValueError::new(self, "Required fields missing for sim tx")
         })?;
 
-        // Create an empty signature — this tx is only used for simulation, never broadcast.
+        // Create an empty signature, this tx is only used for simulation, never broadcast.
         let signature = Signature::new(Default::default(), Default::default(), false);
 
         let arb_typed: ArbTypedTransaction = match typed {

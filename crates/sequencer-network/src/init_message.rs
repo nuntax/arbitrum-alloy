@@ -15,8 +15,8 @@ pub const DEFAULT_INITIAL_L1_BASE_FEE: u64 = 50_000_000_000;
 /// Top-level Arbitrum chain configuration, as serialized in the Initialize message's L2msg JSON.
 ///
 /// JSON keys follow Nitro `go-ethereum/params/config.go` (top-level geth standard):
-/// - `"chainId"` (lowercase) — standard geth field
-/// - `"arbitrum"` (lowercase) — wraps `ArbitrumChainParams`
+/// - `"chainId"` (lowercase), standard geth field
+/// - `"arbitrum"` (lowercase), wraps `ArbitrumChainParams`
 ///
 /// Unknown fields are silently ignored (`deny_unknown_fields` is NOT set).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,23 +31,23 @@ pub struct ArbChainConfig {
 /// Arbitrum-specific chain parameters nested inside the chain config JSON.
 ///
 /// JSON keys are the verbatim Go field names from `ArbitrumChainParams` in
-/// `nitro/go-ethereum/params/config_arbitrum.go` — those fields have no `json:` tags so the key
+/// `nitro/go-ethereum/params/config_arbitrum.go`, those fields have no `json:` tags so the key
 /// equals the exported Go field name (PascalCase).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArbitrumChainParams {
-    /// `"InitialArbOSVersion"` — ArbOS version to start at genesis.
+    /// `"InitialArbOSVersion"`, ArbOS version to start at genesis.
     #[serde(rename = "InitialArbOSVersion")]
     pub initial_arbos_version: u64,
 
-    /// `"InitialChainOwner"` — address that owns the chain at genesis.
+    /// `"InitialChainOwner"`, address that owns the chain at genesis.
     #[serde(rename = "InitialChainOwner")]
     pub initial_chain_owner: Address,
 
-    /// `"GenesisBlockNum"` — L1 block number at which the chain was created.
+    /// `"GenesisBlockNum"`, L1 block number at which the chain was created.
     #[serde(rename = "GenesisBlockNum")]
     pub genesis_block_num: u64,
 
-    /// `"AllowDebugPrecompiles"` — whether debug precompiles are available.
+    /// `"AllowDebugPrecompiles"`, whether debug precompiles are available.
     #[serde(rename = "AllowDebugPrecompiles")]
     pub allow_debug_precompiles: bool,
 }
@@ -86,7 +86,7 @@ pub fn parse_init_message(msg: &L1IncomingMessage) -> Result<ParsedInitMessage> 
         ));
     }
 
-    // `l2msg` is a base64 String in the feed JSON — decode exactly like the L2Message arm.
+    // `l2msg` is a base64 String in the feed JSON, decode exactly like the L2Message arm.
     let data = BASE64_STANDARD.decode(&msg.l2msg)?;
 
     if data.len() < 32 {
@@ -130,7 +130,7 @@ pub fn parse_init_message(msg: &L1IncomingMessage) -> Result<ParsedInitMessage> 
             // Fall through to version 0: remaining bytes are the chain config JSON.
         }
         0 => {
-            // Version 0: no explicit base fee — rest is the chain config JSON directly.
+            // Version 0: no explicit base fee, rest is the chain config JSON directly.
         }
         other => {
             return Err(eyre!("init message: unknown version {}", other));

@@ -398,7 +398,7 @@ mod tests {
     #[serial]
     async fn deposit_eth_produces_deposit_tx_on_l2() -> Result<(), Box<dyn std::error::Error>> {
         let Some(ctx) = TestContext::try_from_env().await else {
-            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set — skipping");
+            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set, skipping");
             return Ok(());
         };
 

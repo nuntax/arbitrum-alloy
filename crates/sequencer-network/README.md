@@ -1,4 +1,4 @@
-# arbitrum-sequencer-network
+# arbitrum-alloy-sequencer
 
 > Unofficial. Not affiliated with, or endorsed by, Offchain Labs or the Arbitrum Foundation.
 

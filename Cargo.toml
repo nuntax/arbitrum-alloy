@@ -51,7 +51,7 @@ arbitrum-alloy-network = { version = "0.1.0", path = "crates/network", default-f
 arbitrum-alloy-precompiles = { version = "0.1.0", path = "crates/precompiles", default-features = false }
 arbitrum-alloy-provider = { version = "0.1.0", path = "crates/provider", default-features = false }
 arbitrum-alloy-rpc-types = { version = "0.1.0", path = "crates/rpc-types", default-features = false }
-arbitrum-sequencer-network = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
+arbitrum-alloy-sequencer = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
 
 # Alloy
 alloy-consensus = { version = "2.0", default-features = false }

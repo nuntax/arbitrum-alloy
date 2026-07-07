@@ -1,4 +1,4 @@
-# arb-alloy
+# arbitrum-alloy
 
 <img src="./arb-alloy-logo.png" alt="arb-alloy logo" width="160" />
 

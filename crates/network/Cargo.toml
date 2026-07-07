@@ -36,5 +36,6 @@ serde = [
 ]
 
 [dev-dependencies]
+alloy-primitives.workspace = true
 alloy-signer.workspace = true
 async-trait.workspace = true

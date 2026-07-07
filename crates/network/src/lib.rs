@@ -169,7 +169,7 @@ mod tests {
     use super::*;
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip2930, TxEip7702, TxLegacy};
     use alloy_network::{EthereumWallet, TxSigner};
-    use alloy_primitives::Signature;
+    use alloy_primitives::{Address, Bytes, Signature, U256};
     use arb_alloy_consensus::transactions::internal::ArbInternalTx;
     use std::future::Future;
     use std::task::{Context, Poll, Waker};

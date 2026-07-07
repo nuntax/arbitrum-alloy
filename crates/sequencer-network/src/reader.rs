@@ -220,13 +220,13 @@ impl TryFrom<u8> for L2MessageKind {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(L2MessageKind::UnsignedUserTx),
-            1 => Ok(L2MessageKind::ContractTx),
-            2 => Ok(L2MessageKind::NonmutatingCall),
-            3 => Ok(L2MessageKind::Batch),
-            4 => Ok(L2MessageKind::SignedTx),
-            6 => Ok(L2MessageKind::Heartbeat),
-            7 => Ok(L2MessageKind::SignedCompressedTx),
+            0 => Ok(Self::UnsignedUserTx),
+            1 => Ok(Self::ContractTx),
+            2 => Ok(Self::NonmutatingCall),
+            3 => Ok(Self::Batch),
+            4 => Ok(Self::SignedTx),
+            6 => Ok(Self::Heartbeat),
+            7 => Ok(Self::SignedCompressedTx),
             _ => Err(eyre::eyre!("Unsupported L2 message kind: {}", value)),
         }
     }
@@ -412,10 +412,10 @@ impl TxType {
     /// Converts an EIP-2718 type byte to a `TxType`, rejecting blob and Arbitrum types.
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            x if x > 0x7f => Ok(TxType::Legacy),
-            1 => Ok(TxType::Eip2930),
-            2 => Ok(TxType::Eip1559),
-            4 => Ok(TxType::Eip7702),
+            x if x > 0x7f => Ok(Self::Legacy),
+            1 => Ok(Self::Eip2930),
+            2 => Ok(Self::Eip1559),
+            4 => Ok(Self::Eip7702),
             _ => Err(eyre::eyre!(
                 "Invalid signed-tx type: {}. Nitro rejects blob (0x03) and Arbitrum (>=0x64) types.",
                 value

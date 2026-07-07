@@ -135,24 +135,6 @@ impl<T> ArbReceiptEnvelope<T> {
             | Self::Internal(r) => r,
         }
     }
-
-    pub(crate) const fn as_receipt_with_bloom_mut(
-        &mut self,
-    ) -> &mut ReceiptWithBloom<ArbReceipt<T>> {
-        match self {
-            Self::Legacy(r)
-            | Self::Eip2930(r)
-            | Self::Eip1559(r)
-            | Self::Eip4844(r)
-            | Self::Eip7702(r)
-            | Self::Deposit(r)
-            | Self::Unsigned(r)
-            | Self::Contract(r)
-            | Self::Retry(r)
-            | Self::SubmitRetryable(r)
-            | Self::Internal(r) => r,
-        }
-    }
 }
 
 impl<T> TxReceipt for ArbReceiptEnvelope<T>

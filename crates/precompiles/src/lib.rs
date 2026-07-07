@@ -6,6 +6,8 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
+// sol!-generated bindings mirror the Solidity ABI, which has functions with many params.
+#![allow(clippy::too_many_arguments)]
 
 /// Canonical addresses for all Arbitrum precompile contracts.
 pub mod addresses;

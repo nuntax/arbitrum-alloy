@@ -19,6 +19,7 @@ path = "src/lib.rs"
 [dependencies]
 alloy-consensus.workspace = true
 alloy-eips.workspace = true
+alloy-network.workspace = true
 alloy-network-primitives.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-types-eth.workspace = true
@@ -26,6 +27,12 @@ alloy-serde.workspace = true
 arb-alloy-consensus.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+# reth-compat: trait impls required for reth's RpcConvert blanket impl
+# (FromConsensusTx, TryIntoSimTx, SignableTxRequest, TryIntoTxEnv)
+reth-rpc-traits = { version = "0.5.0", default-features = false, optional = true }
+alloy-evm = { version = "0.37.0", default-features = false, features = ["rpc"], optional = true }
+revm = { version = "41.0.0", default-features = false, optional = true }
 
 [features]
 default = ["std"]
@@ -41,3 +48,4 @@ std = [
     "serde_json/std",
 ]
 serde = []
+reth-compat = ["reth-rpc-traits", "alloy-evm", "revm"]

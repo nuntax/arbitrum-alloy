@@ -19,7 +19,6 @@ path = "src/lib.rs"
 [dependencies]
 alloy-network.workspace = true
 alloy-consensus.workspace = true
-alloy-primitives.workspace = true
 alloy-rpc-types-eth.workspace = true
 alloy-provider.workspace = true
 arb-alloy-consensus.workspace = true
@@ -37,5 +36,6 @@ serde = [
 ]
 
 [dev-dependencies]
+alloy-primitives.workspace = true
 alloy-signer.workspace = true
 async-trait.workspace = true

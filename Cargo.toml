@@ -54,18 +54,18 @@ arb-alloy-rpc-types = { version = "0.1.0", path = "crates/rpc-types", default-fe
 arb-sequencer-network = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
 
 # Alloy
-alloy-consensus = { version = "1.6.3", default-features = false }
-alloy-eips = { version = "1.6.3", default-features = false }
+alloy-consensus = { version = "2.0", default-features = false }
+alloy-eips = { version = "2.0", default-features = false }
 alloy-rlp = { version = "0.3.9", default-features = false }
-alloy-contract = { version = "1.6.3", default-features = false }
-alloy-serde = { version = "1.6.3", default-features = false }
-alloy-network = { version = "1.6.3", default-features = false }
-alloy-network-primitives = { version = "1.6.3", default-features = false }
-alloy-rpc-types-eth = { version = "1.6.3", default-features = false }
-alloy-provider = { version = "1.6.3", default-features = false }
-alloy-signer = { version = "1.6.3", default-features = false }
-alloy-signer-local = { version = "1.6.3", default-features = false }
-alloy-transport = { version = "1.6.3", default-features = false }
+alloy-contract = { version = "2.0", default-features = false }
+alloy-serde = { version = "2.0", default-features = false }
+alloy-network = { version = "2.0", default-features = false }
+alloy-network-primitives = { version = "2.0", default-features = false }
+alloy-rpc-types-eth = { version = "2.0", default-features = false }
+alloy-provider = { version = "2.0", default-features = false }
+alloy-signer = { version = "2.0", default-features = false }
+alloy-signer-local = { version = "2.0", default-features = false }
+alloy-transport = { version = "2.0", default-features = false }
 dotenvy = { version = "0.15", default-features = false }
 
 # External alloy-core / primitives

@@ -12,9 +12,8 @@ extern crate alloc;
 use alloc::{vec, vec::Vec};
 use alloy_consensus::{Header as EthHeader, TxType, TypedTransaction};
 use alloy_network::{
-    BuildResult, Network, NetworkWallet, TransactionBuilder, TransactionBuilderError,
+    BuildResult, Network, NetworkTransactionBuilder, NetworkWallet, TransactionBuilderError,
 };
-use alloy_primitives::{Address, Bytes, ChainId, TxKind, U256};
 use alloy_provider::fillers::{
     ChainIdFiller, GasFiller, JoinFill, NonceFiller, RecommendedFillers,
 };
@@ -66,123 +65,7 @@ const fn arb_tx_type_from_eth(ty: TxType) -> Option<ArbTxType> {
     }
 }
 
-impl TransactionBuilder<Arbitrum> for ArbTransactionRequest {
-    fn chain_id(&self) -> Option<ChainId> {
-        self.inner.chain_id
-    }
-
-    fn set_chain_id(&mut self, chain_id: ChainId) {
-        self.inner.chain_id = Some(chain_id);
-    }
-
-    fn nonce(&self) -> Option<u64> {
-        self.inner.nonce
-    }
-
-    fn set_nonce(&mut self, nonce: u64) {
-        self.inner.nonce = Some(nonce);
-    }
-
-    fn take_nonce(&mut self) -> Option<u64> {
-        self.inner.nonce.take()
-    }
-
-    fn input(&self) -> Option<&Bytes> {
-        self.inner.input.input()
-    }
-
-    fn set_input<T: Into<Bytes>>(&mut self, input: T) {
-        self.inner.input.input = Some(input.into());
-    }
-
-    fn set_input_kind<T: Into<Bytes>>(
-        &mut self,
-        input: T,
-        kind: alloy_rpc_types_eth::TransactionInputKind,
-    ) {
-        match kind {
-            alloy_rpc_types_eth::TransactionInputKind::Input => {
-                self.inner.input.input = Some(input.into())
-            }
-            alloy_rpc_types_eth::TransactionInputKind::Data => {
-                self.inner.input.data = Some(input.into())
-            }
-            alloy_rpc_types_eth::TransactionInputKind::Both => {
-                let bytes = input.into();
-                self.inner.input.input = Some(bytes.clone());
-                self.inner.input.data = Some(bytes);
-            }
-        }
-    }
-
-    fn from(&self) -> Option<Address> {
-        self.inner.from
-    }
-
-    fn set_from(&mut self, from: Address) {
-        self.inner.from = Some(from);
-    }
-
-    fn kind(&self) -> Option<TxKind> {
-        self.inner.to
-    }
-
-    fn clear_kind(&mut self) {
-        self.inner.to = None;
-    }
-
-    fn set_kind(&mut self, kind: TxKind) {
-        self.inner.to = Some(kind);
-    }
-
-    fn value(&self) -> Option<U256> {
-        self.inner.value
-    }
-
-    fn set_value(&mut self, value: U256) {
-        self.inner.value = Some(value)
-    }
-
-    fn gas_price(&self) -> Option<u128> {
-        self.inner.gas_price
-    }
-
-    fn set_gas_price(&mut self, gas_price: u128) {
-        self.inner.gas_price = Some(gas_price);
-    }
-
-    fn max_fee_per_gas(&self) -> Option<u128> {
-        self.inner.max_fee_per_gas
-    }
-
-    fn set_max_fee_per_gas(&mut self, max_fee_per_gas: u128) {
-        self.inner.max_fee_per_gas = Some(max_fee_per_gas);
-    }
-
-    fn max_priority_fee_per_gas(&self) -> Option<u128> {
-        self.inner.max_priority_fee_per_gas
-    }
-
-    fn set_max_priority_fee_per_gas(&mut self, max_priority_fee_per_gas: u128) {
-        self.inner.max_priority_fee_per_gas = Some(max_priority_fee_per_gas);
-    }
-
-    fn gas_limit(&self) -> Option<u64> {
-        self.inner.gas
-    }
-
-    fn set_gas_limit(&mut self, gas_limit: u64) {
-        self.inner.gas = Some(gas_limit);
-    }
-
-    fn access_list(&self) -> Option<&alloy_rpc_types_eth::AccessList> {
-        self.inner.access_list.as_ref()
-    }
-
-    fn set_access_list(&mut self, access_list: alloy_rpc_types_eth::AccessList) {
-        self.inner.access_list = Some(access_list);
-    }
-
+impl NetworkTransactionBuilder<Arbitrum> for ArbTransactionRequest {
     fn complete_type(&self, ty: ArbTxType) -> Result<(), Vec<&'static str>> {
         match ty {
             ArbTxType::Legacy => self.inner.complete_legacy(),
@@ -201,7 +84,7 @@ impl TransactionBuilder<Arbitrum> for ArbTransactionRequest {
         let common = self.inner.gas.is_some() && self.inner.nonce.is_some();
 
         let legacy = self.inner.gas_price.is_some();
-        let eip2930 = legacy && self.access_list().is_some();
+        let eip2930 = legacy && self.inner.access_list.is_some();
 
         let eip1559 =
             self.inner.max_fee_per_gas.is_some() && self.inner.max_priority_fee_per_gas.is_some();
@@ -286,7 +169,7 @@ mod tests {
     use super::*;
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip2930, TxEip7702, TxLegacy};
     use alloy_network::{EthereumWallet, TxSigner};
-    use alloy_primitives::Signature;
+    use alloy_primitives::{Address, Bytes, Signature, U256};
     use arb_alloy_consensus::transactions::internal::ArbInternalTx;
     use std::future::Future;
     use std::task::{Context, Poll, Waker};

@@ -21,7 +21,7 @@ use crate::transactions::ArbTxType;
 /// Nitro encodes internal txs as a type-0x6a EIP-2718 envelope with an RLP list
 /// of `[chain_id, data]`, where `data` is the ABI-encoded calldata for ArbOSActs
 /// (e.g. `startBlock`, `batchPostingReport`, `batchPostingReportV2`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArbInternalTx {
     /// Arbitrum chain identifier.
@@ -236,7 +236,7 @@ mod tests {
     async fn internal_tx_and_receipt_are_observable_on_l2() -> Result<(), Box<dyn std::error::Error>>
     {
         let Some(ctx) = TestContext::try_from_env().await else {
-            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set — skipping");
+            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set, skipping");
             return Ok(());
         };
 

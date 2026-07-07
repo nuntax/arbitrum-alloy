@@ -18,6 +18,9 @@ pub const ARB_HEADER_EXTRA_DATA_LEN: usize = 32;
 pub const ARB_HEADER_MIX_HASH_LEN: usize = 32;
 /// Number of bytes used inside `mix_hash` for Arbitrum header metadata.
 pub const ARB_HEADER_MIX_HASH_INFO_LEN: usize = 8 + 8 + 8;
+/// Legacy ArbOS version (`ArbosVersion_9`) under which tip collection was implicit in the version
+/// itself rather than flagged in `mix_hash[25]` (Nitro `ArbosVersionCollectTipsOld`).
+pub const ARBOS_VERSION_COLLECT_TIPS_OLD: u64 = 9;
 /// Byte length for the fixture-packed representation (`extra_data || mix_hash[..24]`).
 pub const ARB_HEADER_PACKED_LEN: usize = ARB_HEADER_EXTRA_DATA_LEN + ARB_HEADER_MIX_HASH_INFO_LEN;
 
@@ -38,6 +41,11 @@ pub struct ArbHeaderInfo {
     /// ArbOS format version encoded into the header.
     #[serde(with = "alloy_serde::quantity")]
     pub arbos_format_version: u64,
+    /// Whether this block collected sequencer tips (Nitro `HeaderInfo.CollectTips`). Encoded in
+    /// `mix_hash[25]`, except under [`ARBOS_VERSION_COLLECT_TIPS_OLD`] where it is implicit in the
+    /// version. Defaults to `false` so older serialized payloads (without the field) still decode.
+    #[serde(default)]
+    pub collect_tips: bool,
 }
 
 /// Error while decoding Arbitrum header info.
@@ -121,12 +129,22 @@ impl ArbHeaderInfo {
 
         let mut arbos_format_version_bytes = [0u8; 8];
         arbos_format_version_bytes.copy_from_slice(&mix_hash[16..24]);
+        let arbos_format_version = u64::from_be_bytes(arbos_format_version_bytes);
+
+        // Mirror Nitro `DeserializeHeaderExtraInformation`: the legacy v9 always collected tips
+        // (no flag byte); otherwise the flag lives in `mix_hash[25]`.
+        let collect_tips = if arbos_format_version == ARBOS_VERSION_COLLECT_TIPS_OLD {
+            true
+        } else {
+            mix_hash[25] & 0x1 == 1
+        };
 
         Ok(Self {
             send_root: send_root.into(),
             send_count: u64::from_be_bytes(send_count_bytes),
             l1_block_number: u64::from_be_bytes(l1_block_number_bytes),
-            arbos_format_version: u64::from_be_bytes(arbos_format_version_bytes),
+            arbos_format_version,
+            collect_tips,
         })
     }
 
@@ -148,6 +166,11 @@ impl ArbHeaderInfo {
         out[..8].copy_from_slice(&self.send_count.to_be_bytes());
         out[8..16].copy_from_slice(&self.l1_block_number.to_be_bytes());
         out[16..24].copy_from_slice(&self.arbos_format_version.to_be_bytes());
+        // Nitro `HeaderInfo.mixDigest`: byte 25 flags tip collection, except under the legacy
+        // ArbOS v9 behaviour where collection is implicit in the version (no flag written).
+        if self.collect_tips && self.arbos_format_version != ARBOS_VERSION_COLLECT_TIPS_OLD {
+            out[25] = 1;
+        }
         B256::from(out)
     }
 
@@ -205,6 +228,7 @@ mod tests {
             send_count: 42,
             l1_block_number: 99_001,
             arbos_format_version: 32,
+            collect_tips: false,
         };
 
         let mut header = Header::default();
@@ -212,6 +236,43 @@ mod tests {
         let decoded = ArbHeaderInfo::decode_header(&header).unwrap();
 
         assert_eq!(decoded, info);
+    }
+
+    #[test]
+    fn collect_tips_flag_roundtrips_via_mix_hash_byte_25() {
+        // collect_tips=true on a modern version sets mix_hash[25]=1 and round-trips.
+        let info = ArbHeaderInfo {
+            send_root: B256::from([0x22; 32]),
+            send_count: 7,
+            l1_block_number: 123,
+            arbos_format_version: 40,
+            collect_tips: true,
+        };
+        let mix = info.encode_mix_hash();
+        assert_eq!(mix.as_slice()[25], 1, "mix_hash[25] must flag collect_tips");
+        let mut header = Header::default();
+        info.update_header(&mut header);
+        assert_eq!(ArbHeaderInfo::decode_header(&header).unwrap(), info);
+
+        // collect_tips=false leaves byte 25 zero.
+        let mut info_off = info;
+        info_off.collect_tips = false;
+        assert_eq!(info_off.encode_mix_hash().as_slice()[25], 0);
+
+        // Legacy v9: collection is implicit in the version, byte 25 is not written but decode
+        // still reports collect_tips=true.
+        let legacy = ArbHeaderInfo {
+            arbos_format_version: ARBOS_VERSION_COLLECT_TIPS_OLD,
+            collect_tips: true,
+            ..info
+        };
+        assert_eq!(legacy.encode_mix_hash().as_slice()[25], 0, "v9 writes no flag byte");
+        let mut legacy_header = Header::default();
+        legacy.update_header(&mut legacy_header);
+        assert!(
+            ArbHeaderInfo::decode_header(&legacy_header).unwrap().collect_tips,
+            "v9 must decode as collect_tips=true"
+        );
     }
 
     #[test]
@@ -231,6 +292,7 @@ mod tests {
             send_count: 123,
             l1_block_number: 456,
             arbos_format_version: 50,
+            collect_tips: false,
         };
         let packed = info.encode_packed();
         let decoded = ArbHeaderInfo::decode_packed(packed.as_ref()).unwrap();
@@ -254,6 +316,7 @@ mod tests {
             send_count: 1,
             l1_block_number: 8_888_888,
             arbos_format_version: 0,
+            collect_tips: false,
         };
         let header = Header {
             number: 7777,
@@ -274,6 +337,7 @@ mod tests {
             send_count: 1,
             l1_block_number: 8_888_888,
             arbos_format_version: 50,
+            collect_tips: false,
         };
 
         let header = Header {

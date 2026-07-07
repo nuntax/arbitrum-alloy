@@ -15,13 +15,14 @@ use serde::{Deserialize, Serialize};
 use crate::transactions::ArbTxType;
 
 /// Arbitrum retry transaction used to redeem retryable tickets (`type = 0x68`).
-#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxRetry {
     /// Arbitrum chain identifier.
     #[serde(alias = "chain_id")]
     pub chain_id: U256,
     /// Sender nonce.
+    #[serde(with = "alloy_serde::quantity")]
     pub nonce: u64,
     /// Sender address.
     pub from: Address,
@@ -29,7 +30,7 @@ pub struct TxRetry {
     #[serde(alias = "maxFeePerGas")]
     pub gas_fee_cap: U256,
     /// Gas limit for execution.
-    #[serde(alias = "gas")]
+    #[serde(alias = "gas", with = "alloy_serde::quantity")]
     pub gas_limit: u64,
     /// Call target (or create).
     pub to: TxKind,

@@ -13,8 +13,22 @@ pub const ARB_INFO: Address = address!("0x00000000000000000000000000000000000000
 /// ArbAddressTable: address compression table for calldata optimization.
 pub const ARB_ADDRESS_TABLE: Address = address!("0x0000000000000000000000000000000000000066");
 
+/// ArbBLS: legacy BLS public key registry (Classic-era; no active methods in Nitro).
+/// Nitro reference: types.ArbBLSAddress = 0x67.
+pub const ARB_BLS: Address = address!("0x0000000000000000000000000000000000000067");
+
 /// ArbFunctionTable: function table for classic Arbitrum contracts.
 pub const ARB_FUNCTION_TABLE: Address = address!("0x0000000000000000000000000000000000000068");
+
+/// ArbNativeTokenManager: mint/burn native token (active from ArbOS v41).
+/// Nitro reference: types.ArbNativeTokenManagerAddress = 0x73.
+pub const ARB_NATIVE_TOKEN_MANAGER: Address =
+    address!("0x0000000000000000000000000000000000000073");
+
+/// ArbFilteredTransactionsManager: filtered transaction list management.
+/// Nitro reference: types.ArbFilteredTransactionsManagerAddress = 0x74.
+pub const ARB_FILTERED_TRANSACTIONS_MANAGER: Address =
+    address!("0x0000000000000000000000000000000000000074");
 
 /// ArbOwnerPublic: read-only chain owner queries (callable by anyone).
 pub const ARB_OWNER_PUBLIC: Address = address!("0x000000000000000000000000000000000000006b");

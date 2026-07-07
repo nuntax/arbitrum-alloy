@@ -6,6 +6,8 @@ use alloy_primitives::{Address, FixedBytes, U256};
 use serde::*;
 use serde_json::Value;
 
+pub use arb_alloy_consensus::transactions::batchpostingreport::BatchDataStats;
+
 /// Root JSON object for a sequencer feed payload batch.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,17 +38,6 @@ pub struct MessageWithMetadata {
     pub l1_incoming_message: L1IncomingMessage,
     /// Number of delayed messages consumed before this message.
     pub delayed_messages_read: u64,
-}
-
-/// Batch data tokenization stats used by newer batch posting reports.
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BatchDataStats {
-    /// Total byte length of batch data.
-    #[serde(rename = "Length")]
-    pub length: u64,
-    /// Number of non-zero bytes in batch data.
-    #[serde(rename = "NonZeros")]
-    pub non_zeros: u64,
 }
 
 /// L1 inbox message plus optional batch accounting metadata.

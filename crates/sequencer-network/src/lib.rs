@@ -11,3 +11,9 @@ extern crate alloc;
 
 /// Arbitrum sequencer feed protocol modules.
 pub mod sequencer;
+
+/// Decode functions for sequencer feed messages.
+pub mod reader;
+
+/// ArbOS Initialize message (L1 kind 11) parser.
+pub mod init_message;

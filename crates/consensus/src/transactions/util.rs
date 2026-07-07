@@ -3,7 +3,6 @@ use bytes::Buf;
 
 /// Decodes `N` raw bytes from the current buffer and converts them into `F`.
 pub fn decode<const N: usize, F: From<FixedBytes<N>>>(buf: &mut &[u8]) -> alloy_rlp::Result<F> {
-    //read the length of T from the cursor
     if buf.len() < N {
         return Err(alloy_rlp::Error::InputTooShort);
     }

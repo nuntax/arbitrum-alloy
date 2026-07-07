@@ -64,7 +64,7 @@ where
             .request("arb_getRawBlockMetadata", (from_block, to_block))
             .await
     }
-    /// Note: not yet available on Nitro as of 19th feb 2026, will error with "method not found" until then.
+    /// Not available on all Nitro versions; errors with "method not found" if unsupported.
     async fn arb_get_l1_confirmations(&self, block_num: u64) -> TransportResult<u64> {
         self.client()
             .request("arb_getL1Confirmations", (block_num,))
@@ -166,7 +166,7 @@ mod tests {
         let rpc = match std::env::var("ARBITRUM_RPC") {
             Ok(v) if !v.trim().is_empty() => v,
             _ => {
-                eprintln!("ARBITRUM_RPC not set — skipping");
+                eprintln!("ARBITRUM_RPC not set, skipping");
                 return Ok(());
             }
         };

@@ -22,6 +22,10 @@ pub mod timeboost;
 /// Transaction response payload types.
 pub mod transaction;
 
+/// `reth-rpc-traits` compatibility impls (gated behind `reth-compat` feature).
+#[cfg(feature = "reth-compat")]
+pub mod reth_compat;
+
 pub use arbdebug::{PricingModelHistory, TimeoutQueue, TimeoutQueueHistory};
 pub use arbtrace::TraceFilter;
 pub use receipt::ArbTransactionReceipt;

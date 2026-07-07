@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::transactions::ArbTxType;
 
 /// Arbitrum L1-originated contract transaction (`type = 0x66`).
-#[derive(PartialEq, Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TxContract {
     /// Arbitrum chain identifier.
@@ -280,7 +280,7 @@ mod tests {
     async fn send_contract_tx_produces_contract_tx_on_l2() -> Result<(), Box<dyn std::error::Error>>
     {
         let Some(ctx) = TestContext::try_from_env().await else {
-            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set — skipping");
+            eprintln!("ARBITRUM_RPC/ETHEREUM_RPC not set, skipping");
             return Ok(());
         };
 

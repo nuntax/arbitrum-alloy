@@ -1,5 +1,5 @@
 [package]
-name = "arb-sequencer-network"
+name = "arbitrum-sequencer-network"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,7 @@ description = "Network-layer types for the Arbitrum sequencer feed protocol"
 workspace = true
 
 [lib]
+name = "arb_sequencer_network"
 path = "src/lib.rs"
 
 [dependencies]
@@ -21,7 +22,7 @@ alloy-primitives.workspace = true
 serde.workspace = true
 alloy-core.workspace = true
 serde_json.workspace = true
-arb-alloy-consensus.workspace = true
+arbitrum-alloy-consensus.workspace = true
 alloy-consensus.workspace = true
 tracing.workspace = true
 base64 = "0.22.1"
@@ -35,6 +36,6 @@ std = [
     "alloy-core/std",
     "serde/std",
     "serde_json/std",
-    "arb-alloy-consensus/std",
+    "arbitrum-alloy-consensus/std",
 ]
 serde = []

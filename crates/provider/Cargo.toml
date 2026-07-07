@@ -1,5 +1,5 @@
 [package]
-name = "arb-alloy-provider"
+name = "arbitrum-alloy-provider"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,6 +14,7 @@ description = "Arbitrum provider extensions for Alloy"
 workspace = true
 
 [lib]
+name = "arb_alloy_provider"
 path = "src/lib.rs"
 
 [dependencies]
@@ -22,8 +23,8 @@ alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
 alloy-rpc-types-eth.workspace = true
-arb-alloy-network.workspace = true
-arb-alloy-rpc-types.workspace = true
+arbitrum-alloy-network.workspace = true
+arbitrum-alloy-rpc-types.workspace = true
 async-trait.workspace = true
 serde_json.workspace = true
 
@@ -35,10 +36,10 @@ default = ["std"]
 std = [
     "alloy-provider/reqwest",
     "alloy-provider/reqwest-default-tls",
-    "arb-alloy-network/std",
-    "arb-alloy-rpc-types/std",
+    "arbitrum-alloy-network/std",
+    "arbitrum-alloy-rpc-types/std",
 ]
 serde = [
-    "arb-alloy-network/serde",
-    "arb-alloy-rpc-types/serde",
+    "arbitrum-alloy-network/serde",
+    "arbitrum-alloy-rpc-types/serde",
 ]

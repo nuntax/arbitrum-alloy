@@ -1,5 +1,5 @@
 [package]
-name = "arb-alloy"
+name = "arbitrum-alloy"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,39 +18,40 @@ rustdoc-args = ["--cfg", "docsrs"]
 workspace = true
 
 [lib]
+name = "arb_alloy"
 path = "src/lib.rs"
 
 [dependencies]
-arb-alloy-consensus = { workspace = true, optional = true }
-arb-alloy-network = { workspace = true, optional = true }
-arb-alloy-precompiles = { workspace = true, optional = true }
-arb-alloy-provider = { workspace = true, optional = true }
-arb-alloy-rpc-types = { workspace = true, optional = true }
+arbitrum-alloy-consensus = { workspace = true, optional = true }
+arbitrum-alloy-network = { workspace = true, optional = true }
+arbitrum-alloy-precompiles = { workspace = true, optional = true }
+arbitrum-alloy-provider = { workspace = true, optional = true }
+arbitrum-alloy-rpc-types = { workspace = true, optional = true }
 
 [features]
 default = ["std", "k256", "serde"]
 
 std = [
-  "arb-alloy-consensus?/std",
-  "arb-alloy-network?/std",
-  "arb-alloy-precompiles?/std",
-  "arb-alloy-provider?/std",
-  "arb-alloy-rpc-types?/std",
+  "arbitrum-alloy-consensus?/std",
+  "arbitrum-alloy-network?/std",
+  "arbitrum-alloy-precompiles?/std",
+  "arbitrum-alloy-provider?/std",
+  "arbitrum-alloy-rpc-types?/std",
 ]
 
 full = ["consensus", "network", "precompiles", "rpc-types", "provider"]
 
-k256 = ["arb-alloy-consensus?/k256"]
+k256 = ["arbitrum-alloy-consensus?/k256"]
 
 serde = [
-  "arb-alloy-consensus?/serde",
-  "arb-alloy-network?/serde",
-  "arb-alloy-provider?/serde",
-  "arb-alloy-rpc-types?/serde",
+  "arbitrum-alloy-consensus?/serde",
+  "arbitrum-alloy-network?/serde",
+  "arbitrum-alloy-provider?/serde",
+  "arbitrum-alloy-rpc-types?/serde",
 ]
 
-consensus = ["dep:arb-alloy-consensus"]
-network = ["dep:arb-alloy-network"]
-precompiles = ["dep:arb-alloy-precompiles"]
-provider = ["dep:arb-alloy-provider"]
-rpc-types = ["dep:arb-alloy-rpc-types"]
+consensus = ["dep:arbitrum-alloy-consensus"]
+network = ["dep:arbitrum-alloy-network"]
+precompiles = ["dep:arbitrum-alloy-precompiles"]
+provider = ["dep:arbitrum-alloy-provider"]
+rpc-types = ["dep:arbitrum-alloy-rpc-types"]

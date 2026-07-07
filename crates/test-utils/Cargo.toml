@@ -20,7 +20,7 @@ alloy-contract.workspace = true
 alloy-core.workspace = true
 alloy-primitives = { workspace = true, features = ["std"] }
 alloy-signer-local.workspace = true
-arb-alloy = { path = "../../crates/arb-alloy", default-features = false, features = ["full", "std", "serde", "k256"] }
+arbitrum-alloy = { path = "../../crates/arb-alloy", default-features = false, features = ["full", "std", "serde", "k256"] }
 dotenvy.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["time"] }

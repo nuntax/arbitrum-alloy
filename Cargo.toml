@@ -17,8 +17,8 @@ edition = "2024"
 rust-version = "1.92"
 authors = ["Nuntax"]
 license = "Apache-2.0 OR MIT"
-homepage = "https://github.com/alloy-rs/arb-alloy"
-repository = "https://github.com/alloy-rs/arb-alloy"
+homepage = "https://github.com/nuntax/arbitrum-alloy"
+repository = "https://github.com/nuntax/arbitrum-alloy"
 exclude = ["benches/", "tests/"]
 
 [workspace.lints.rustdoc]
@@ -46,12 +46,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.dependencies]
 # Workspace crates
-arb-alloy-consensus = { version = "0.1.0", path = "crates/consensus", default-features = false }
-arb-alloy-network = { version = "0.1.0", path = "crates/network", default-features = false }
-arb-alloy-precompiles = { version = "0.1.0", path = "crates/precompiles", default-features = false }
-arb-alloy-provider = { version = "0.1.0", path = "crates/provider", default-features = false }
-arb-alloy-rpc-types = { version = "0.1.0", path = "crates/rpc-types", default-features = false }
-arb-sequencer-network = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
+arbitrum-alloy-consensus = { version = "0.1.0", path = "crates/consensus", default-features = false }
+arbitrum-alloy-network = { version = "0.1.0", path = "crates/network", default-features = false }
+arbitrum-alloy-precompiles = { version = "0.1.0", path = "crates/precompiles", default-features = false }
+arbitrum-alloy-provider = { version = "0.1.0", path = "crates/provider", default-features = false }
+arbitrum-alloy-rpc-types = { version = "0.1.0", path = "crates/rpc-types", default-features = false }
+arbitrum-sequencer-network = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
 
 # Alloy
 alloy-consensus = { version = "2.0", default-features = false }

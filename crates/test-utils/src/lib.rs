@@ -10,7 +10,7 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_types_eth::{BlockNumberOrTag, TransactionReceipt};
 use alloy_signer_local::PrivateKeySigner;
-use arb_alloy::network::Arbitrum;
+use arbitrum_alloy::network::Arbitrum;
 
 sol!(
     #[sol(rpc)]
@@ -323,7 +323,7 @@ impl<AP: Provider<Arbitrum>, EP: Provider<Ethereum>> TestContext<AP, EP> {
         &self,
         tx_hash: B256,
         timeout: Duration,
-    ) -> Result<arb_alloy::rpc_types::ArbTransactionReceipt, Box<dyn std::error::Error>> {
+    ) -> Result<arbitrum_alloy::rpc_types::ArbTransactionReceipt, Box<dyn std::error::Error>> {
         let deadline = tokio::time::Instant::now() + timeout;
 
         loop {
@@ -376,7 +376,7 @@ impl<AP: Provider<Arbitrum>, EP: Provider<Ethereum>> TestContext<AP, EP> {
 
     /// Deposits ETH from L1 to the sender's L2 account via `Inbox.depositEth()`.
     ///
-    /// Produces a [`TxDeposit`](arb_alloy::consensus::TxDeposit) (type `0x64`) on L2.
+    /// Produces a [`TxDeposit`](arbitrum_alloy::consensus::TxDeposit) (type `0x64`) on L2.
     /// Signs with `DEV_PRIVKEY` from the environment.
     pub async fn deposit_eth(
         &self,
@@ -395,7 +395,7 @@ impl<AP: Provider<Arbitrum>, EP: Provider<Ethereum>> TestContext<AP, EP> {
 
     /// Sends an unsigned L1-to-L2 transaction via `Inbox.sendL1FundedUnsignedTransaction()`.
     ///
-    /// Produces a [`TxUnsigned`](arb_alloy::consensus::TxUnsigned) (type `0x65`) on L2.
+    /// Produces a [`TxUnsigned`](arbitrum_alloy::consensus::TxUnsigned) (type `0x65`) on L2.
     /// ETH equal to `gas_limit * max_fee_per_gas` is sent from L1 and credited to the
     /// sender's L2 alias so it can pay for gas without a pre-funded alias balance.
     /// Signs with `DEV_PRIVKEY` from the environment.
@@ -423,7 +423,7 @@ impl<AP: Provider<Arbitrum>, EP: Provider<Ethereum>> TestContext<AP, EP> {
 
     /// Sends a contract-originated L1-to-L2 transaction via `Inbox.sendL1FundedContractTransaction()`.
     ///
-    /// Produces a [`TxContract`](arb_alloy::consensus::TxContract) (type `0x66`) on L2.
+    /// Produces a [`TxContract`](arbitrum_alloy::consensus::TxContract) (type `0x66`) on L2.
     /// ETH equal to `gas_limit * max_fee_per_gas` is sent from L1 and credited to the
     /// sender's L2 alias so it can pay for gas without a pre-funded alias balance.
     /// Signs with `DEV_PRIVKEY` from the environment.

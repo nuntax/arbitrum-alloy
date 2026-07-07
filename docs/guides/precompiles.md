@@ -1,12 +1,12 @@
 # Use Precompile Bindings
 
-`arb-alloy-precompiles` exposes constants and `sol!` contract bindings for Arbitrum precompiles.
+`arbitrum-alloy-precompiles` exposes constants and `sol!` contract bindings for Arbitrum precompiles.
 
 ## Example: ArbSys
 
 ```rust
 use alloy_provider::ProviderBuilder;
-use arb_alloy::{network::Arbitrum, precompiles::{addresses::ARB_SYS, interfaces::ArbSys}};
+use arbitrum_alloy::{network::Arbitrum, precompiles::{addresses::ARB_SYS, interfaces::ArbSys}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

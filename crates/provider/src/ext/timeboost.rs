@@ -2,8 +2,8 @@ use alloc::boxed::Box;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::TransportResult;
-use arb_alloy_network::Arbitrum;
-use arb_alloy_rpc_types::JsonExpressLaneSubmission;
+use arbitrum_alloy_network::Arbitrum;
+use arbitrum_alloy_rpc_types::JsonExpressLaneSubmission;
 
 /// Provider extension trait for the `timeboost_*` JSON-RPC namespace.
 ///
@@ -41,7 +41,7 @@ where
 mod tests {
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_transport::mock::Asserter;
-    use arb_alloy_network::Arbitrum;
+    use arbitrum_alloy_network::Arbitrum;
 
     use super::TimeboostProviderExt;
 
@@ -57,7 +57,7 @@ mod tests {
         let asserter = Asserter::new();
         let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone());
 
-        let submission = arb_alloy_rpc_types::JsonExpressLaneSubmission {
+        let submission = arbitrum_alloy_rpc_types::JsonExpressLaneSubmission {
             chain_id: alloy_primitives::U256::from(42161),
             round: 1,
             auction_contract_address: alloy_primitives::Address::ZERO,
@@ -94,7 +94,7 @@ mod tests {
             .await?;
         let _ = provider.get_block_number().await?;
 
-        let submission = arb_alloy_rpc_types::JsonExpressLaneSubmission {
+        let submission = arbitrum_alloy_rpc_types::JsonExpressLaneSubmission {
             chain_id: alloy_primitives::U256::from(42161),
             round: 1,
             auction_contract_address: alloy_primitives::Address::ZERO,

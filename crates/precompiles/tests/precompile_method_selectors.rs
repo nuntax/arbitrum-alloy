@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use alloy_core::sol_types::{SolCall, SolInterface};
-use arb_alloy_precompiles::*;
+use arbitrum_alloy_precompiles::*;
 
 macro_rules! assert_method {
     ($interface:ident, $calls:ident, $call:ident, $signature:literal, $selector:expr) => {{

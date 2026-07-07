@@ -4,7 +4,7 @@ use alloy_network_primitives::TransactionResponse;
 use alloy_primitives::{Address, B256, BlockHash, Bytes, ChainId, TxKind, U256};
 use serde::{Deserialize, Serialize};
 
-use arb_alloy_consensus::ArbTxEnvelope;
+use arbitrum_alloy_consensus::ArbTxEnvelope;
 
 /// Arbitrum RPC transaction response.
 #[derive(Clone, Debug, Serialize, Deserialize)]

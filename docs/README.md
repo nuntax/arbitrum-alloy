@@ -1,6 +1,6 @@
 # User Documentation
 
-Use these docs if you want to build with `arb-alloy`.
+Use these docs if you want to build with `arbitrum-alloy`.
 
 - [Quickstart](./quickstart.md)
 - [Connect To A Provider](./guides/connect-provider.md)

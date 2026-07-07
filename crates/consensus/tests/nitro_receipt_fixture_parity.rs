@@ -3,7 +3,7 @@
 use alloy_consensus::TxReceipt;
 use alloy_eips::{Decodable2718, Encodable2718, Typed2718};
 use alloy_primitives::hex;
-use arb_alloy_consensus::ArbReceiptEnvelope;
+use arbitrum_alloy_consensus::ArbReceiptEnvelope;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

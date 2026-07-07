@@ -3,8 +3,8 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::BlockNumberOrTag;
 use alloy_transport::TransportResult;
-use arb_alloy_network::Arbitrum;
-use arb_alloy_rpc_types::{PricingModelHistory, TimeoutQueue, TimeoutQueueHistory};
+use arbitrum_alloy_network::Arbitrum;
+use arbitrum_alloy_rpc_types::{PricingModelHistory, TimeoutQueue, TimeoutQueueHistory};
 
 /// Provider extension trait for the `arbdebug_*` JSON-RPC namespace.
 ///
@@ -84,7 +84,7 @@ mod tests {
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_rpc_types_eth::BlockNumberOrTag;
     use alloy_transport::mock::Asserter;
-    use arb_alloy_network::Arbitrum;
+    use arbitrum_alloy_network::Arbitrum;
 
     use super::ArbDebugProviderExt;
 

@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.92"
 authors = ["Nuntax"]
@@ -46,12 +46,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.dependencies]
 # Workspace crates
-arbitrum-alloy-consensus = { version = "0.1.0", path = "crates/consensus", default-features = false }
-arbitrum-alloy-network = { version = "0.1.0", path = "crates/network", default-features = false }
-arbitrum-alloy-precompiles = { version = "0.1.0", path = "crates/precompiles", default-features = false }
-arbitrum-alloy-provider = { version = "0.1.0", path = "crates/provider", default-features = false }
-arbitrum-alloy-rpc-types = { version = "0.1.0", path = "crates/rpc-types", default-features = false }
-arbitrum-alloy-sequencer = { version = "0.1.0", path = "crates/sequencer-network", default-features = false }
+arbitrum-alloy-consensus = { version = "0.2.0", path = "crates/consensus", default-features = false }
+arbitrum-alloy-network = { version = "0.2.0", path = "crates/network", default-features = false }
+arbitrum-alloy-precompiles = { version = "0.2.0", path = "crates/precompiles", default-features = false }
+arbitrum-alloy-provider = { version = "0.2.0", path = "crates/provider", default-features = false }
+arbitrum-alloy-rpc-types = { version = "0.2.0", path = "crates/rpc-types", default-features = false }
+arbitrum-alloy-sequencer = { version = "0.2.0", path = "crates/sequencer-network", default-features = false }
 
 # Alloy
 alloy-consensus = { version = "2.0", default-features = false }

@@ -1,18 +1,18 @@
 # Quickstart
 
-This gets you running with `arb-alloy` in a few minutes.
+This gets you running with `arbitrum-alloy` in a few minutes.
 
 ## 1. Add Dependencies
 
 ```bash
-cargo add arb-alloy alloy-provider tokio -F tokio/macros -F tokio/rt-multi-thread
+cargo add arbitrum-alloy alloy-provider tokio -F tokio/macros -F tokio/rt-multi-thread
 ```
 
 ## 2. Create A Typed Arbitrum Provider
 
 ```rust
 use alloy_provider::{Provider, ProviderBuilder};
-use arb_alloy::network::Arbitrum;
+use arbitrum_alloy::network::Arbitrum;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

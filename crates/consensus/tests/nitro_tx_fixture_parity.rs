@@ -3,7 +3,7 @@
 use alloy_consensus::{Transaction, Typed2718};
 use alloy_eips::{Decodable2718, Encodable2718};
 use alloy_primitives::{Address, Bytes, TxKind, U256, hex};
-use arb_alloy_consensus::ArbTxEnvelope;
+use arbitrum_alloy_consensus::ArbTxEnvelope;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

@@ -9,20 +9,20 @@
 
 #[cfg(feature = "consensus")]
 #[doc(inline)]
-pub use arb_alloy_consensus as consensus;
+pub use arbitrum_alloy_consensus as consensus;
 
 #[cfg(feature = "network")]
 #[doc(inline)]
-pub use arb_alloy_network as network;
+pub use arbitrum_alloy_network as network;
 
 #[cfg(feature = "precompiles")]
 #[doc(inline)]
-pub use arb_alloy_precompiles as precompiles;
+pub use arbitrum_alloy_precompiles as precompiles;
 
 #[cfg(feature = "provider")]
 #[doc(inline)]
-pub use arb_alloy_provider as provider;
+pub use arbitrum_alloy_provider as provider;
 
 #[cfg(feature = "rpc-types")]
 #[doc(inline)]
-pub use arb_alloy_rpc_types as rpc_types;
+pub use arbitrum_alloy_rpc_types as rpc_types;

@@ -64,7 +64,7 @@ alloy_core::sol! {
 #[cfg(test)]
 mod tests {
     use alloy_provider::{Provider, ProviderBuilder};
-    use arb_alloy_network::Arbitrum;
+    use arbitrum_alloy_network::Arbitrum;
 
     use crate::addresses::NODE_INTERFACE;
     use crate::interfaces::NodeInterface;

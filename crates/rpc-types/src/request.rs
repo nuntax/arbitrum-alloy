@@ -4,7 +4,7 @@ use alloy_primitives::{Address, Bytes, ChainId, TxKind, U256};
 use alloy_rpc_types_eth::AccessList;
 use serde::{Deserialize, Serialize};
 
-use arb_alloy_consensus::ArbTxEnvelope;
+use arbitrum_alloy_consensus::ArbTxEnvelope;
 
 /// Arbitrum transaction request wrapper around Ethereum request fields.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -41,37 +41,37 @@ impl From<ArbTxEnvelope> for ArbTransactionRequest {
     }
 }
 
-impl From<arb_alloy_consensus::ArbTypedTransaction> for ArbTransactionRequest {
-    fn from(tx: arb_alloy_consensus::ArbTypedTransaction) -> Self {
+impl From<arbitrum_alloy_consensus::ArbTypedTransaction> for ArbTransactionRequest {
+    fn from(tx: arbitrum_alloy_consensus::ArbTypedTransaction) -> Self {
         let inner = match tx {
-            arb_alloy_consensus::ArbTypedTransaction::Legacy(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Legacy(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Eip2930(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Eip2930(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Eip1559(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Eip1559(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Eip7702(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Eip7702(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Deposit(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Deposit(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::SubmitRetryable(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::SubmitRetryable(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Unsigned(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Unsigned(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Contract(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Contract(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Retry(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Retry(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
-            arb_alloy_consensus::ArbTypedTransaction::Internal(tx) => {
+            arbitrum_alloy_consensus::ArbTypedTransaction::Internal(tx) => {
                 alloy_rpc_types_eth::TransactionRequest::from_transaction(tx)
             }
         };

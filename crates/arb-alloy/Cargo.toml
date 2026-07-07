@@ -18,7 +18,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 workspace = true
 
 [lib]
-name = "arb_alloy"
 path = "src/lib.rs"
 
 [dependencies]

@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use alloy_primitives::{B256, hex};
-use arb_alloy_consensus::{
+use arbitrum_alloy_consensus::{
     ArbHeaderInfo,
     header::{ARB_HEADER_EXTRA_DATA_LEN, ARB_HEADER_MIX_HASH_LEN},
 };

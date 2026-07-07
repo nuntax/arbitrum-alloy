@@ -82,7 +82,7 @@ alloy_core::sol! {
 mod tests {
     use alloy_primitives::address;
     use alloy_provider::{Provider, ProviderBuilder};
-    use arb_alloy_network::Arbitrum;
+    use arbitrum_alloy_network::Arbitrum;
 
     use crate::addresses::ARB_SYS;
     use crate::interfaces::ArbSys;

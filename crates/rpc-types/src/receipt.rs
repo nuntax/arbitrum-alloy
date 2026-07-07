@@ -4,7 +4,7 @@ use alloy_primitives::{Address, B256, BlockHash, TxHash};
 use serde::{Deserialize, Serialize};
 
 use alloy_rpc_types_eth::Log as RpcLog;
-use arb_alloy_consensus::ArbReceiptEnvelope;
+use arbitrum_alloy_consensus::ArbReceiptEnvelope;
 
 /// Arbitrum transaction receipt response with Nitro extensions.
 #[derive(Clone, Debug, Serialize, Deserialize)]

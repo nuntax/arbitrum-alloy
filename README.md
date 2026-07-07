@@ -1,6 +1,6 @@
 # arbitrum-alloy
 
-<img src="./arb-alloy-logo.png" alt="arb-alloy logo" width="160" />
+<img src="./arbitrum-alloy-logo.png" alt="arbitrum-alloy logo" width="160" />
 
 Arbitrum integrations for the Alloy Rust SDK.
 
@@ -11,7 +11,7 @@ This project is under active development and not yet stable. API and feature cov
 
 ```rust
 use alloy_provider::{Provider, ProviderBuilder};
-use arb_alloy::{network::Arbitrum, provider::ArbProviderExt};
+use arbitrum_alloy::{network::Arbitrum, provider::ArbProviderExt};
 
 #[tokio::main()]
 async fn main() {
@@ -38,7 +38,7 @@ async fn main() {
 
 ## Crates
 
-Published on crates.io under the `arbitrum-alloy-*` namespace (the shorter `arb-alloy-*`
+Published on crates.io under the `arbitrum-alloy-*` namespace (the shorter `arbitrum-alloy-*`
 names are held by an unrelated project):
 
 - [`arbitrum-alloy`](https://crates.io/crates/arbitrum-alloy): umbrella crate re-exporting the components below.
@@ -49,14 +49,14 @@ names are held by an unrelated project):
 - [`arbitrum-alloy-precompiles`](https://crates.io/crates/arbitrum-alloy-precompiles): Arbitrum precompile address constants and `sol!` bindings.
 - [`arbitrum-alloy-sequencer`](https://crates.io/crates/arbitrum-alloy-sequencer): Arbitrum sequencer feed protocol types.
 
-Each crate keeps its original `arb_alloy_*` import path, so the package name and the name you
-`use` differ. For the umbrella:
+The package name and import path match (hyphens become underscores), so `arbitrum-alloy-consensus`
+is `use arbitrum_alloy_consensus`. For the umbrella:
 
 ```toml
 [dependencies]
-arbitrum-alloy = { version = "0.1", features = ["network", "provider"] }
+arbitrum-alloy = { version = "0.2", features = ["network", "provider"] }
 ```
 
 ```rust
-use arb_alloy::{network::Arbitrum, provider::ArbProviderExt};
+use arbitrum_alloy::{network::Arbitrum, provider::ArbProviderExt};
 ```

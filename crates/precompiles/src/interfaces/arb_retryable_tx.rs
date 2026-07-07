@@ -48,7 +48,7 @@ alloy_core::sol! {
 mod tests {
     use alloy_primitives::B256;
     use alloy_provider::ProviderBuilder;
-    use arb_alloy_network::Arbitrum;
+    use arbitrum_alloy_network::Arbitrum;
 
     use crate::addresses::ARB_RETRYABLE_TX;
     use crate::interfaces::ArbRetryableTx;

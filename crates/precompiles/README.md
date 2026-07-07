@@ -12,7 +12,7 @@ precompile methods in a fully typed manner.
 
 ```rust,ignore
 use alloy_provider::ProviderBuilder;
-use arb_alloy_precompiles::{ArbSys, addresses};
+use arbitrum_alloy_precompiles::{ArbSys, addresses};
 
 let provider = ProviderBuilder::new()
     .connect_http("https://arb1.arbitrum.io/rpc".parse().unwrap());

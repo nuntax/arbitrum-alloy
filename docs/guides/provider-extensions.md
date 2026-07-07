@@ -1,13 +1,13 @@
 # Call Arbitrum RPC Extensions
 
-Use extension traits from `arb-alloy-provider` through the umbrella crate.
+Use extension traits from `arbitrum-alloy-provider` through the umbrella crate.
 
 ## Example
 
 ```rust
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_eth::BlockNumberOrTag;
-use arb_alloy::{network::Arbitrum, provider::ArbProviderExt};
+use arbitrum_alloy::{network::Arbitrum, provider::ArbProviderExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

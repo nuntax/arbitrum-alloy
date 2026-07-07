@@ -6,7 +6,7 @@ use alloy_primitives::{Address, FixedBytes, U256};
 use serde::*;
 use serde_json::Value;
 
-pub use arb_alloy_consensus::transactions::batchpostingreport::BatchDataStats;
+pub use arbitrum_alloy_consensus::transactions::batchpostingreport::BatchDataStats;
 
 /// Root JSON object for a sequencer feed payload batch.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

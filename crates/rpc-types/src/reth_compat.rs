@@ -9,7 +9,7 @@
 use alloy_consensus::{SignableTransaction, error::ValueError};
 use alloy_primitives::Address;
 use alloy_rpc_types_eth::TransactionInfo;
-use arb_alloy_consensus::{ArbTxEnvelope, ArbTypedTransaction};
+use arbitrum_alloy_consensus::{ArbTxEnvelope, ArbTypedTransaction};
 use core::convert::Infallible;
 use reth_rpc_traits::{FromConsensusTx, SignTxRequestError, SignableTxRequest, TryIntoSimTx};
 

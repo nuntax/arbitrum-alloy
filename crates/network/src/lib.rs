@@ -19,8 +19,8 @@ use alloy_provider::fillers::{
 };
 use alloy_rpc_types_eth::Block;
 
-use arb_alloy_consensus::{ArbReceiptEnvelope, ArbTxEnvelope, ArbTxType, ArbTypedTransaction};
-use arb_alloy_rpc_types::{ArbTransaction, ArbTransactionReceipt, ArbTransactionRequest};
+use arbitrum_alloy_consensus::{ArbReceiptEnvelope, ArbTxEnvelope, ArbTxType, ArbTypedTransaction};
+use arbitrum_alloy_rpc_types::{ArbTransaction, ArbTransactionReceipt, ArbTransactionRequest};
 
 /// Alloy `Network` implementation for Arbitrum.
 #[derive(Clone, Copy, Debug)]
@@ -170,7 +170,7 @@ mod tests {
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip2930, TxEip7702, TxLegacy};
     use alloy_network::{EthereumWallet, TxSigner};
     use alloy_primitives::{Address, Bytes, Signature, U256};
-    use arb_alloy_consensus::transactions::internal::ArbInternalTx;
+    use arbitrum_alloy_consensus::transactions::internal::ArbInternalTx;
     use std::future::Future;
     use std::task::{Context, Poll, Waker};
 

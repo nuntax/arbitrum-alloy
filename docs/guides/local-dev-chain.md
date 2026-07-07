@@ -1,6 +1,6 @@
 # Local Dev Chain Setup
 
-For local integration work, run a local Nitro stack and point `arb-alloy` to it.
+For local integration work, run a local Nitro stack and point `arbitrum-alloy` to it.
 
 ## Environment
 

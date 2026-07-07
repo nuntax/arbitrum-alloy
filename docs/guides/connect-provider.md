@@ -1,12 +1,12 @@
 # Connect To A Provider
 
-`arb-alloy` works with Alloy providers but uses the `Arbitrum` network type.
+`arbitrum-alloy` works with Alloy providers but uses the `Arbitrum` network type.
 
 ## HTTP Provider
 
 ```rust
 use alloy_provider::{Provider, ProviderBuilder};
-use arb_alloy::network::Arbitrum;
+use arbitrum_alloy::network::Arbitrum;
 
 # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 let provider = ProviderBuilder::<_, _, Arbitrum>::default()
@@ -23,7 +23,7 @@ println!("chain id: {chain_id}");
 
 ```rust
 use alloy_provider::ProviderBuilder;
-use arb_alloy::network::Arbitrum;
+use arbitrum_alloy::network::Arbitrum;
 
 # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 let provider = ProviderBuilder::<_, _, Arbitrum>::default()

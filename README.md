@@ -38,7 +38,7 @@ async fn main() {
 
 ## Crates
 
-Published on crates.io under the `arbitrum-alloy-*` namespace (the shorter `arbitrum-alloy-*`
+Published on crates.io under the `arbitrum-alloy-*` namespace (the shorter `arb-alloy-*`
 names are held by an unrelated project):
 
 - [`arbitrum-alloy`](https://crates.io/crates/arbitrum-alloy): umbrella crate re-exporting the components below.

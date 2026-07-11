@@ -50,6 +50,10 @@ alloy_core::sol! {
         function scheduleArbOSUpgrade(uint64 newVersion, uint64 timestamp) external;
         function setChainConfig(bytes calldata serializedChainConfig) external;
 
+        // Multi-constraint gas pricing (ArbOS 50+): install a set of gas constraints, each
+        // {target, adjustmentWindow, backlog}. Replaces the legacy single speed-limit backlog model.
+        function setGasPricingConstraints(uint64[3][] calldata constraints) external;
+
         // -- Stylus / WASM settings --
         function setInkPrice(uint32 inkPrice) external;
         function setWasmMaxStackDepth(uint32 depth) external;

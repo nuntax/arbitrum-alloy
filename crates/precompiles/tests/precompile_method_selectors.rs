@@ -663,6 +663,14 @@ fn arb_owner_method_selectors() {
         "setChainConfig(bytes)",
         [0x36, 0x88, 0xab, 0xea]
     );
+    // ArbOS 50+ multi-constraint gas pricing (Nitro ArbOwner.SetGasPricingConstraints).
+    assert_method!(
+        ArbOwner,
+        ArbOwnerCalls,
+        setGasPricingConstraintsCall,
+        "setGasPricingConstraints(uint64[3][])",
+        [0xcc, 0x0d, 0x55, 0x6a]
+    );
     // Not present in Arbiscan selector TSV for this exact signature.
     assert_method!(
         ArbOwner,

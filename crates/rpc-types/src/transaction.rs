@@ -132,6 +132,13 @@ mod tx_serde {
     struct OptionalFields {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Address>,
+        // The internal (0x6a) and submit-retryable (0x69) inner structs carry no `to` serde field
+        // (their recipient is a fixed precompile), so flattening the envelope omits `to` and RPC
+        // renders it null. Emit a synthetic `to` for exactly those variants, sourced from the
+        // envelope's (correct) `Transaction::to()`. Every other variant flattens its own `to`, so
+        // this stays None for them (skipped) to avoid a duplicate `to` key.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<Address>,
         #[serde(
             default,
             rename = "gasPrice",
@@ -175,6 +182,14 @@ mod tx_serde {
         )
     }
 
+    /// Variants whose inner struct has no `to` serde field, so the flattened envelope omits `to`.
+    const fn inner_omits_to(inner: &ArbTxEnvelope) -> bool {
+        matches!(
+            inner,
+            ArbTxEnvelope::Internal(_) | ArbTxEnvelope::SubmitRetryable(_)
+        )
+    }
+
     impl From<ArbTransaction> for TransactionSerdeHelper {
         fn from(value: ArbTransaction) -> Self {
             let ArbTransaction {
@@ -196,6 +211,11 @@ mod tx_serde {
             } else {
                 Some(from)
             };
+            let to = if inner_omits_to(&inner) {
+                alloy_consensus::Transaction::to(&inner)
+            } else {
+                None
+            };
             let effective_gas_price = effective_gas_price.filter(|_| inner.gas_price().is_none());
 
             Self {
@@ -206,6 +226,7 @@ mod tx_serde {
                 block_timestamp,
                 other: OptionalFields {
                     from,
+                    to,
                     effective_gas_price,
                     request_id,
                 },

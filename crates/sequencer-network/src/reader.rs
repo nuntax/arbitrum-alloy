@@ -100,13 +100,14 @@ pub fn parse_message(
         MessageType::SubmitRetryable => {
             let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg.clone())?;
             let buffer = buffer_vec.as_mut_slice();
-            tracing::debug!("Retyrable message: {:?}", msg);
+            tracing::debug!("Retryable message: {:?}", msg);
             tracing::debug!("Retryable message buffer: {}", hex::encode(&buffer));
 
             let tx = parse_submit_retryable(
                 &mut &*buffer,
                 chain_id,
-                Address::from_str(&msg.header.sender).unwrap(),
+                Address::from_str(&msg.header.sender)
+                    .map_err(|_| eyre!("SubmitRetryable: invalid sender address"))?,
                 B256::from_hex(
                     msg.header
                         .request_id
@@ -610,5 +611,14 @@ mod tests {
                 "kind {kind} must error, not return empty"
             );
         }
+    }
+
+    /// A malformed (here: empty/default) sender in a SubmitRetryable message must return an
+    /// error, not panic. Regression: `header.sender` was `Address::from_str(..).unwrap()`, so a
+    /// feed-controlled bad sender crashed the decoder.
+    #[test]
+    fn parse_message_submit_retryable_bad_sender_errors_not_panic() {
+        let m = msg_with_kind(MessageType::SubmitRetryable as u8);
+        assert!(parse_message(m, CHAIN_ID, 0).is_err());
     }
 }

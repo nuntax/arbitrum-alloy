@@ -1,3 +1,4 @@
+use alloy_consensus::Transaction;
 use alloy_consensus::TxEip1559;
 use alloy_consensus::TxEip2930;
 use alloy_consensus::TxEip7702;
@@ -78,6 +79,9 @@ pub fn parse_message(
         }
         // Nitro returns `nil, nil`, the message produces no transactions.
         MessageType::EndOfBlock => Ok(Vec::new()),
+        // Nitro creates a deposit for the L1-funded value, then processes the attached unsigned
+        // or contract transaction. Both use request IDs derived from the inbox request ID.
+        MessageType::L2FundedByL1 => parse_l2_funded_by_l1(msg, chain_id),
         MessageType::EthDeposit => {
             let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg)?;
             let buffer = buffer_vec.as_mut_slice();
@@ -100,13 +104,14 @@ pub fn parse_message(
         MessageType::SubmitRetryable => {
             let mut buffer_vec = BASE64_STANDARD.decode(msg.l2msg.clone())?;
             let buffer = buffer_vec.as_mut_slice();
-            tracing::debug!("Retyrable message: {:?}", msg);
+            tracing::debug!("Retryable message: {:?}", msg);
             tracing::debug!("Retryable message buffer: {}", hex::encode(&buffer));
 
             let tx = parse_submit_retryable(
                 &mut &*buffer,
                 chain_id,
-                Address::from_str(&msg.header.sender).unwrap(),
+                Address::from_str(&msg.header.sender)
+                    .map_err(|_| eyre!("SubmitRetryable: invalid sender address"))?,
                 B256::from_hex(
                     msg.header
                         .request_id
@@ -154,12 +159,69 @@ pub fn parse_message(
             tracing::debug!("ignoring Initialize message (no L2 transactions)");
             Ok(Vec::new())
         }
-        // Everything else is either tx-producing-but-unported (L2FundedByL1) or a hard Nitro error
-        // (BatchForGasEstimation, Invalid, ...). Fail loudly: silently returning an
-        // empty list here would drop real transactions and diverge the state root.
-        // TODO: implement L2FundedByL1 (deposit + parseUnsignedTx) when the corpus needs it.
+        // The remaining variants are hard Nitro errors (BatchForGasEstimation, Invalid, ...).
+        // Fail loudly: silently returning an empty list here would drop real transactions and
+        // diverge the state root.
         _ => Err(eyre!("unsupported L1 message type: {:?}", msg_type)),
     }
+}
+
+/// Decode an `L2FundedByL1` message into its deposit followed by its attached L2 transaction.
+///
+/// Nitro derives distinct request IDs for the two transactions as `keccak(request_id || 0)` and
+/// `keccak(request_id || 1)`. The deposit is deliberately first: it funds the poster before the
+/// unsigned or contract transaction is executed.
+fn parse_l2_funded_by_l1(
+    msg: L1IncomingMessage,
+    chain_id: ChainId,
+) -> Result<Vec<ArbTxEnvelope>> {
+    let buffer = BASE64_STANDARD.decode(msg.l2msg)?;
+    if buffer.len() as u64 > MAX_L2_MESSAGE_SIZE {
+        return Err(eyre!("message too large"));
+    }
+
+    let (kind, body) = buffer
+        .split_first()
+        .ok_or_else(|| eyre!("L2FundedByL1 message has no data"))?;
+    let request_id = B256::from_hex(
+        msg.header
+            .request_id
+            .as_str()
+            .ok_or_else(|| eyre!("cannot issue L2 funded by L1 tx without L1 request id"))?,
+    )?;
+    let poster: Address = msg
+        .header
+        .sender
+        .parse()
+        .map_err(|_| eyre!("L2FundedByL1: invalid poster/sender address"))?;
+
+    let tx_kind = L2MessageKind::try_from(*kind)?;
+    let tx = parse_unsigned_tx(
+        body,
+        poster,
+        Some(derived_request_id(request_id, 1)),
+        chain_id,
+        &tx_kind,
+    )?;
+    let deposit = TxDeposit {
+        chain_id: U256::from(chain_id),
+        request_id: derived_request_id(request_id, 0),
+        // Nitro omits `From` for an L2FundedByL1 deposit. Its zero value is therefore the zero
+        // address, while the funded value is sent to the poster.
+        from: Address::ZERO,
+        to: poster,
+        value: tx.value(),
+    };
+
+    Ok(vec![deposit.into(), tx])
+}
+
+/// Derive a child L1 request identifier as Nitro does for L2 message segments.
+fn derived_request_id(request_id: B256, index: u64) -> B256 {
+    let mut buf = [0u8; 64];
+    buf[..32].copy_from_slice(request_id.as_slice());
+    buf[32..].copy_from_slice(&U256::from(index).to_be_bytes::<32>());
+    keccak256(buf)
 }
 
 /// Decode the fixed-width fields of a `SubmitRetryable` L1 message body into a `SubmitRetryableTx`.
@@ -293,12 +355,7 @@ pub fn parse_l2_msg(
 
                 // Nested request id per Nitro `parseL2Message`: keccak(request_id, index) for each
                 // segment, so a nested ContractTx derives the right id. `None` stays `None`.
-                let nested_request_id = request_id.map(|rid| {
-                    let mut buf = [0u8; 64];
-                    buf[..32].copy_from_slice(rid.as_slice());
-                    buf[32..].copy_from_slice(&U256::from(index).to_be_bytes::<32>());
-                    keccak256(buf)
-                });
+                let nested_request_id = request_id.map(|rid| derived_request_id(rid, index));
                 // recurse for nested batch / signed-tx segments
                 let nested_txs =
                     parse_l2_msg(&mut msg_buf, depth + 1, poster, nested_request_id, chain_id)?;
@@ -514,6 +571,23 @@ mod tests {
         b
     }
 
+    fn l2_funded_by_l1_message(
+        l2msg: Vec<u8>,
+        poster: Address,
+        request_id: B256,
+    ) -> L1IncomingMessage {
+        L1IncomingMessage {
+            header: Header {
+                kind: MessageType::L2FundedByL1 as u8,
+                sender: poster.to_string(),
+                request_id: serde_json::Value::String(request_id.to_string()),
+                ..Default::default()
+            },
+            l2msg: BASE64_STANDARD.encode(l2msg),
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn parse_unsigned_user_tx_roundtrips() {
         let poster = Address::repeat_byte(0xab);
@@ -548,6 +622,94 @@ mod tests {
             }
             other => panic!("expected Contract, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_l2_funded_by_l1_unsigned_tx_creates_deposit_then_unsigned_tx() {
+        let poster = Address::repeat_byte(0xab);
+        let to = Address::repeat_byte(0xcd);
+        let request_id = B256::repeat_byte(0x11);
+        let message = l2_funded_by_l1_message(
+            unsigned_body(0, 21_000, 1_000_000_000, 7, to, 42, b"hi"),
+            poster,
+            request_id,
+        );
+
+        let txs = parse_message(message, CHAIN_ID, 0).unwrap();
+        assert_eq!(txs.len(), 2);
+        match &txs[0] {
+            ArbTxEnvelope::Deposit(tx) => {
+                assert_eq!(tx.chain_id, U256::from(CHAIN_ID));
+                assert_eq!(tx.request_id, derived_request_id(request_id, 0));
+                assert_eq!(tx.from(), Address::ZERO);
+                assert_eq!(tx.to, poster);
+                assert_eq!(tx.value, U256::from(42));
+            }
+            other => panic!("expected Deposit, got {other:?}"),
+        }
+        match &txs[1] {
+            ArbTxEnvelope::Unsigned(tx) => {
+                assert_eq!(tx.from, poster);
+                assert_eq!(tx.nonce, 7);
+                assert_eq!(tx.to, TxKind::Call(to));
+                assert_eq!(tx.value, U256::from(42));
+                assert_eq!(&tx.input[..], b"hi");
+            }
+            other => panic!("expected Unsigned, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_l2_funded_by_l1_contract_tx_uses_derived_request_id() {
+        let poster = Address::repeat_byte(0xab);
+        let request_id = B256::repeat_byte(0x22);
+        let message = l2_funded_by_l1_message(
+            unsigned_body(1, 50_000, 1, 0, Address::ZERO, 99, b"init"),
+            poster,
+            request_id,
+        );
+
+        let txs = parse_message(message, CHAIN_ID, 0).unwrap();
+        assert_eq!(txs.len(), 2);
+        match &txs[0] {
+            ArbTxEnvelope::Deposit(tx) => {
+                assert_eq!(tx.request_id, derived_request_id(request_id, 0));
+                assert_eq!(tx.from(), Address::ZERO);
+                assert_eq!(tx.to, poster);
+                assert_eq!(tx.value, U256::from(99));
+            }
+            other => panic!("expected Deposit, got {other:?}"),
+        }
+        match &txs[1] {
+            ArbTxEnvelope::Contract(tx) => {
+                assert_eq!(tx.request_id, derived_request_id(request_id, 1));
+                assert_eq!(tx.from, poster);
+                assert_eq!(tx.to, TxKind::Create);
+                assert_eq!(tx.value, U256::from(99));
+                assert_eq!(&tx.input[..], b"init");
+            }
+            other => panic!("expected Contract, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_l2_funded_by_l1_requires_data_and_request_id() {
+        let mut empty = msg_with_kind(MessageType::L2FundedByL1 as u8);
+        empty.header.request_id = serde_json::Value::String(B256::ZERO.to_string());
+        assert!(parse_message(empty, CHAIN_ID, 0).is_err());
+
+        let mut missing_request_id = msg_with_kind(MessageType::L2FundedByL1 as u8);
+        missing_request_id.header.sender = Address::ZERO.to_string();
+        missing_request_id.l2msg = BASE64_STANDARD.encode(unsigned_body(
+            0,
+            21_000,
+            1,
+            0,
+            Address::ZERO,
+            0,
+            b"",
+        ));
+        assert!(parse_message(missing_request_id, CHAIN_ID, 0).is_err());
     }
 
     /// Batch framing (8-byte BE length prefix + payload) + recursion + Heartbeat=6, end to end.
@@ -597,18 +759,23 @@ mod tests {
         );
     }
 
-    /// Tx-producing-but-unported and Nitro-error types must fail loudly, never silently drop.
+    /// Nitro-error message types must fail loudly, never silently drop.
     #[test]
     fn parse_message_unsupported_types_error() {
-        for kind in [
-            MessageType::L2FundedByL1 as u8,
-            MessageType::BatchForGasEstimation as u8,
-            MessageType::Invalid as u8,
-        ] {
+        for kind in [MessageType::BatchForGasEstimation as u8, MessageType::Invalid as u8] {
             assert!(
                 parse_message(msg_with_kind(kind), CHAIN_ID, 0).is_err(),
                 "kind {kind} must error, not return empty"
             );
         }
+    }
+
+    /// A malformed (here: empty/default) sender in a SubmitRetryable message must return an
+    /// error, not panic. Regression: `header.sender` was `Address::from_str(..).unwrap()`, so a
+    /// feed-controlled bad sender crashed the decoder.
+    #[test]
+    fn parse_message_submit_retryable_bad_sender_errors_not_panic() {
+        let m = msg_with_kind(MessageType::SubmitRetryable as u8);
+        assert!(parse_message(m, CHAIN_ID, 0).is_err());
     }
 }

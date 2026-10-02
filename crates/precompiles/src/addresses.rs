@@ -20,6 +20,10 @@ pub const ARB_BLS: Address = address!("0x000000000000000000000000000000000000006
 /// ArbFunctionTable: function table for classic Arbitrum contracts.
 pub const ARB_FUNCTION_TABLE: Address = address!("0x0000000000000000000000000000000000000068");
 
+/// ArbosTest: deprecated gas-burning precompile.
+/// Nitro reference: types.ArbosTestAddress = 0x69.
+pub const ARBOS_TEST: Address = address!("0x0000000000000000000000000000000000000069");
+
 /// ArbNativeTokenManager: mint/burn native token (active from ArbOS v41).
 /// Nitro reference: types.ArbNativeTokenManagerAddress = 0x73.
 pub const ARB_NATIVE_TOKEN_MANAGER: Address =

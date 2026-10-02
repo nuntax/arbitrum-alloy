@@ -4,19 +4,41 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbWasmCache.go`.
     #[sol(rpc)]
     interface ArbWasmCache {
-        /// Returns true if the account is a cache manager.
-        function isCacheManager(address account) external view returns (bool);
+        // @notice See if the user is a cache manager.
+        function isCacheManager(
+            address manager
+        ) external view returns (bool);
 
-        /// Returns all registered cache managers.
-        function allCacheManagers() external view returns (address[] memory);
+        // @notice Retrieve all address managers.
+        // @return managers the list of managers.
+        function allCacheManagers() external view returns (address[] memory managers);
 
-        /// Returns true if the codehash is currently cached.
-        function codehashIsCached(bytes32 codehash) external view returns (bool);
+        // @dev Deprecated, replaced with cacheProgram
+        // @notice Available in ArbOS version 30 only
+        function cacheCodehash(
+            bytes32 codehash
+        ) external;
 
-        /// Caches a Stylus program by address.
-        function cacheProgram(address program) external;
+        // @notice Caches all programs with a codehash equal to the given address.
+        // @notice Reverts if the programs have expired.
+        // @notice Caller must be a cache manager or chain owner.
+        // @notice If you're looking for how to bid for position, interact with the chain's cache manager contract.
+        // @notice Available in ArbOS version 31 and above
+        function cacheProgram(
+            address addr
+        ) external;
 
-        /// Evicts a cached codehash.
-        function evictCodehash(bytes32 codehash) external;
+        // @notice Evicts all programs with the given codehash.
+        // @notice Caller must be a cache manager or chain owner.
+        function evictCodehash(
+            bytes32 codehash
+        ) external;
+
+        // @notice Gets whether a program is cached. Note that the program may be expired.
+        function codehashIsCached(
+            bytes32 codehash
+        ) external view returns (bool);
+
+        event UpdateProgramCache(address indexed manager, bytes32 indexed codehash, bool cached);
     }
 }

@@ -7,31 +7,73 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbRetryableTx.go`.
     #[sol(rpc)]
     interface ArbRetryableTx {
-        /// Returns the default lifetime of a retryable ticket in seconds.
+        /*
+         * @notice Schedule an attempt to redeem a redeemable tx, donating all of the call's gas to the redeem.
+         * Revert if ticketId does not exist.
+         * @param ticketId unique identifier of retryable message: keccak256(keccak256(ArbchainId, inbox-sequence-number), uint(0) )
+         * @return txId that the redeem attempt will have
+         */
+        function redeem(
+            bytes32 ticketId
+        ) external returns (bytes32);
+
+        /*
+         * @notice Return the minimum lifetime of redeemable txn.
+         * @return lifetime in seconds
+         */
         function getLifetime() external view returns (uint256);
 
-        /// Returns the timeout timestamp for a retryable ticket.
-        function getTimeout(bytes32 ticketId) external view returns (uint256);
+        /*
+         * @notice Return the timestamp when ticketId will age out, reverting if it does not exist
+         * @param ticketId unique ticket identifier
+         * @return timestamp for ticket's deadline
+         */
+        function getTimeout(
+            bytes32 ticketId
+        ) external view returns (uint256);
 
-        /// Returns the beneficiary address for a retryable ticket.
-        function getBeneficiary(bytes32 ticketId) external view returns (address);
+        /*
+         * @notice Adds one lifetime period to the life of ticketId.
+         * Donate gas to pay for the lifetime extension.
+         * If successful, emits LifetimeExtended event.
+         * Revert if ticketId does not exist, or if the timeout of ticketId is already at least one lifetime period in the future.
+         * @param ticketId unique ticket identifier
+         * @return new timeout of ticketId
+         */
+        function keepalive(
+            bytes32 ticketId
+        ) external returns (uint256);
 
-        /// Returns the address currently redeeming a ticket (zero if none).
+        /*
+         * @notice Return the beneficiary of ticketId.
+         * Revert if ticketId doesn't exist.
+         * @param ticketId unique ticket identifier
+         * @return address of beneficiary for ticket
+         */
+        function getBeneficiary(
+            bytes32 ticketId
+        ) external view returns (address);
+
+        /*
+         * @notice Cancel ticketId and refund its callvalue to its beneficiary.
+         * Revert if ticketId doesn't exist, or if called by anyone other than ticketId's beneficiary.
+         * @param ticketId unique ticket identifier
+         */
+        function cancel(
+            bytes32 ticketId
+        ) external;
+
+        /*
+         * @notice Gets the redeemer of the current retryable redeem attempt.
+         * Returns the zero address if the current transaction is not a retryable redeem attempt.
+         * If this is an auto-redeem, returns the fee refund address of the retryable.
+         */
         function getCurrentRedeemer() external view returns (address);
 
-        /// Redeems a retryable ticket, executing its stored transaction.
-        /// Returns the transaction ID of the retry attempt.
-        function redeem(bytes32 ticketId) external returns (bytes32);
-
-        /// Extends the timeout of a retryable ticket by one lifetime period.
-        /// Returns the new timeout timestamp. Nitro declares this method non-payable.
-        function keepalive(bytes32 ticketId) external returns (uint256);
-
-        /// Cancels a retryable ticket and refunds remaining value to the beneficiary.
-        function cancel(bytes32 ticketId) external;
-
-        /// Represents a retryable submission for explorers. Direct calls always revert with
-        /// `NotCallable()`.
+        /*
+         * @notice Do not call. This method represents a retryable submission to aid explorers.
+         * Calling it will always revert.
+         */
         function submitRetryable(
             bytes32 requestId,
             uint256 l1BaseFee,
@@ -43,22 +85,26 @@ alloy_core::sol! {
             address feeRefundAddress,
             address beneficiary,
             address retryTo,
-            bytes retryData
+            bytes calldata retryData
         ) external;
 
-        /// Emitted when a retryable ticket is successfully redeemed.
-        event TicketRedeemed(bytes32 indexed ticketId);
-
-        /// Emitted when a retryable ticket is created.
         event TicketCreated(bytes32 indexed ticketId);
-
-        /// Emitted when a retryable ticket is canceled.
+        event LifetimeExtended(bytes32 indexed ticketId, uint256 newTimeout);
+        event RedeemScheduled(
+            bytes32 indexed ticketId,
+            bytes32 indexed retryTxHash,
+            uint64 indexed sequenceNum,
+            uint64 donatedGas,
+            address gasDonor,
+            uint256 maxRefund,
+            uint256 submissionFeeRefund
+        );
         event Canceled(bytes32 indexed ticketId);
 
-        /// Emitted when a retryable ticket's lifetime is extended.
-        event LifetimeExtended(bytes32 indexed ticketId, uint256 newTimeout);
+        // @dev DEPRECATED in favour of new RedeemScheduled event after the nitro upgrade
+        event Redeemed(bytes32 indexed userTxHash);
 
-        /// Returned when the explorer-only retryable submission method is called directly.
+        error NoTicketWithID();
         error NotCallable();
     }
 }

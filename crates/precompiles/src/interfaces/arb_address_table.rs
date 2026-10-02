@@ -4,28 +4,63 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbAddressTable.go`.
     #[sol(rpc)]
     interface ArbAddressTable {
-        /// Checks if an address is registered in the table.
-        function addressExists(address account) external view returns (bool);
+        /*
+         * @notice Check whether an address exists in the address table
+         * @param addr address to check for presence in table
+         * @return true if address is in table
+         */
+        function addressExists(
+            address addr
+        ) external view returns (bool);
 
-        /// Compresses an address using the table.
-        function compress(address account) external view returns (bytes memory);
+        /*
+         * @notice compress an address and return the result
+         * @param addr address to compress
+         * @return compressed address bytes
+         */
+        function compress(
+            address addr
+        ) external returns (bytes memory);
 
-        /// Looks up an address and returns its index.
-        function lookup(address account) external view returns (uint256);
+        /*
+         * @notice read a compressed address from a bytes buffer
+         * @param buf bytes buffer containing an address
+         * @param offset offset of target address
+         * @return resulting address and updated offset into the buffer (revert if buffer is too short)
+         */
+        function decompress(
+            bytes calldata buf,
+            uint256 offset
+        ) external view returns (address, uint256);
 
-        /// Looks up an index and returns the corresponding address.
-        function lookupIndex(uint256 index) external view returns (address);
+        /*
+         * @param addr address to lookup
+         * @return index of an address in the address table (revert if address isn't in the table)
+         */
+        function lookup(
+            address addr
+        ) external view returns (uint256);
 
-        /// Returns the number of addresses in the table.
+        /*
+         * @param index index to lookup address
+         * @return address at a given index in address table (revert if index is beyond end of table)
+         */
+        function lookupIndex(
+            uint256 index
+        ) external view returns (address);
+
+        /*
+         * @notice Register an address in the address table
+         * @param addr address to register
+         * @return index of the address (existing index, or newly created index if not already registered)
+         */
+        function register(
+            address addr
+        ) external returns (uint256);
+
+        /*
+         * @return size of address table (= first unused index)
+         */
         function size() external view returns (uint256);
-
-        /// Decompresses an address from a buffer at the given offset.
-        /// Returns (decompressed address, bytes consumed).
-        function decompress(bytes calldata buf, uint256 offset)
-            external
-            returns (address, uint256);
-
-        /// Registers an address in the table. Returns the assigned index.
-        function register(address account) external returns (uint256);
     }
 }

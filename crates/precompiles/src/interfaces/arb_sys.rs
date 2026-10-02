@@ -7,56 +7,107 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbSys.go`.
     #[sol(rpc)]
     interface ArbSys {
-        /// Returns the current L2 block number.
+        /*
+         * @notice Get Arbitrum block number (distinct from L1 block number; Arbitrum genesis block has block number 0)
+         * @return block number as int
+         */
         function arbBlockNumber() external view returns (uint256);
 
-        /// Returns the L2 block hash for the given block number.
-        /// Only available for the last 256 blocks.
-        function arbBlockHash(uint256 arbBlockNum) external view returns (bytes32);
+        /*
+         * @notice Get Arbitrum block hash (reverts unless currentBlockNum-256 <= arbBlockNum < currentBlockNum)
+         * @return block hash
+         */
+        function arbBlockHash(
+            uint256 arbBlockNum
+        ) external view returns (bytes32);
 
-        /// Returns the rollup chain ID.
+        /*
+         * @notice Gets the rollup's unique chain identifier
+         * @return Chain identifier as int
+         */
         function arbChainID() external view returns (uint256);
 
-        /// Returns the current ArbOS version number.
+        /*
+         * @notice Get internal version number identifying an ArbOS build, this is `55 + nitroArbOS version number`
+         *         e.g. on ArbOS 31 this would return 86. This is the only function that have the 55 offset.
+         * @return version number as int
+         */
         function arbOSVersion() external view returns (uint256);
 
-        /// Returns 0 (Nitro has no storage gas concept; kept for Classic compat).
+        /*
+         * @notice Returns 0 since Nitro has no concept of storage gas
+         * @return uint 0
+         */
         function getStorageGasAvailable() external view returns (uint256);
 
-        /// Returns true if the current call is top-level (not an internal call).
+        /*
+         * @notice (deprecated) check if current call is top level (meaning it was triggered by an EoA or a L1 contract)
+         * @dev this call has been deprecated and may be removed in a future release
+         * @return true if current execution frame is not a call by another L2 contract
+         */
         function isTopLevelCall() external view returns (bool);
 
-        /// Maps an L1 contract address to its L2 alias.
-        function mapL1SenderContractAddressToL2Alias(address sender, address unused)
-            external
-            view
-            returns (address);
+        /*
+         * @notice map L1 sender contract address to its L2 alias
+         * @param sender sender address
+         * @param unused argument no longer used
+         * @return aliased sender address
+         */
+        function mapL1SenderContractAddressToL2Alias(
+            address sender,
+            address unused
+        ) external pure returns (address);
 
-        /// Returns true if the caller's address was aliased from L1.
+        /*
+         * @notice check if the caller (of this caller of this) is an aliased L1 contract address
+         * @return true iff the caller's address is an alias for an L1 contract address
+         */
         function wasMyCallersAddressAliased() external view returns (bool);
 
-        /// Returns the caller's original (un-aliased) L1 address.
+        /*
+         * @notice return the address of the caller (of this caller of this), without applying L1 contract address aliasing
+         * @return address of the caller's caller, without applying L1 contract address aliasing
+         */
         function myCallersAddressWithoutAliasing() external view returns (address);
 
-        /// Returns the send Merkle tree state: (size, root, partials).
+        /*
+         * @notice Send given amount of Eth to dest from sender.
+         * This is a convenience function, which is equivalent to calling sendTxToL1 with empty data.
+         * @param destination recipient address on L1
+         * @return unique identifier for this L2-to-L1 transaction.
+         */
+        function withdrawEth(
+            address destination
+        ) external payable returns (uint256);
+
+        /*
+         * @notice Send a transaction to L1
+         * @dev it is not possible to execute on the L1 any L2-to-L1 transaction which contains data
+         * to a contract address without any code (as enforced by the Bridge contract).
+         * @param destination recipient address on L1
+         * @param data (optional) calldata for L1 contract call
+         * @return a unique identifier for this L2-to-L1 transaction.
+         */
+        function sendTxToL1(
+            address destination,
+            bytes calldata data
+        ) external payable returns (uint256);
+
+        /*
+         * @notice Get send Merkle tree state
+         * @return size number of sends in the history
+         * @return root root hash of the send history
+         * @return partials hashes of partial subtrees in the send history tree
+         */
         function sendMerkleTreeState()
             external
             view
             returns (uint256 size, bytes32 root, bytes32[] memory partials);
 
-        /// Sends a transaction to L1. Returns the L2→L1 message sequence number.
-        function sendTxToL1(address destination, bytes calldata data)
-            external
-            payable
-            returns (uint256);
-
-        /// Withdraws ETH to an L1 destination. Returns the L2→L1 message sequence number.
-        function withdrawEth(address destination)
-            external
-            payable
-            returns (uint256);
-
-        /// Emitted when a transaction is sent from L2 to L1.
+        /*
+         * @notice creates a send txn from L2 to L1
+         * @param position = (level << 192) + leaf = (0 << 192) + leaf = leaf
+         */
         event L2ToL1Tx(
             address caller,
             address indexed destination,
@@ -69,12 +120,31 @@ alloy_core::sol! {
             bytes data
         );
 
-        /// Emitted when a new send Merkle tree update is published.
-        event SendMerkleUpdate(
-            uint256 indexed reserved,
-            bytes32 blockHash,
-            uint256 sendCount
+        // @dev DEPRECATED in favour of the new L2ToL1Tx event above after the nitro upgrade
+        event L2ToL1Transaction(
+            address caller,
+            address indexed destination,
+            uint256 indexed uniqueId,
+            uint256 indexed batchNumber,
+            uint256 indexInBatch,
+            uint256 arbBlockNum,
+            uint256 ethBlockNum,
+            uint256 timestamp,
+            uint256 callvalue,
+            bytes data
         );
+
+        /*
+         * @notice logs a merkle branch for proof synthesis
+         * @param reserved an index meant only to align the 4th index with L2ToL1Transaction's 4th event
+         * @param hash the merkle hash
+         * @param position = (level << 192) + leaf
+         */
+        event SendMerkleUpdate(
+            uint256 indexed reserved, bytes32 indexed hash, uint256 indexed position
+        );
+
+        error InvalidBlockNumber(uint256 requested, uint256 current);
     }
 }
 

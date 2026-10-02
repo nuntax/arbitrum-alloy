@@ -7,9 +7,14 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbStatistics.go`.
     #[sol(rpc)]
     interface ArbStatistics {
-        /// Returns chain statistics.
-        /// Returns: (blockNumber, classicNumAccounts, classicStorageSum,
-        ///           classicGasSum, classicNumTxes, classicNumContracts)
+        // @notice Get Arbitrum block number and other statistics as they were right before the Nitro upgrade.
+        // @return (
+        //      Number of accounts,
+        //      Total storage allocated (includes storage that was later deallocated),
+        //      Total ArbGas used,
+        //      Number of transaction receipt issued,
+        //      Number of contracts created,
+        //    )
         function getStats()
             external
             view

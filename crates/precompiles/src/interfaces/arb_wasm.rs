@@ -6,67 +6,127 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbWasm.go`.
     #[sol(rpc)]
     interface ArbWasm {
-        /// Returns the current Stylus version.
-        function stylusVersion() external view returns (uint16);
+        // @notice Activate a wasm program
+        // @param program the program to activate
+        // @return version the stylus version the program was activated against
+        // @return dataFee the data fee paid to store the activated program
+        function activateProgram(
+            address program
+        ) external payable returns (uint16 version, uint256 dataFee);
 
-        /// Returns the ink price (computational cost unit).
-        function inkPrice() external view returns (uint32);
+        // @notice Gets the latest stylus version
+        // @return version the stylus version
+        function stylusVersion() external view returns (uint16 version);
 
-        /// Returns the maximum WASM stack depth.
-        function maxStackDepth() external view returns (uint32);
+        // @notice Gets the stylus version the program with codehash was most recently activated against
+        // @return version the program version (reverts for EVM contracts)
+        function codehashVersion(
+            bytes32 codehash
+        ) external view returns (uint16 version);
 
-        /// Returns the number of free WASM pages.
-        function freePages() external view returns (uint16);
+        // @notice Extends a program's expiration date.
+        // Reverts if too soon or if the program is not up to date.
+        function codehashKeepalive(
+            bytes32 codehash
+        ) external payable;
 
-        /// Returns the gas cost per WASM page.
-        function pageGas() external view returns (uint16);
+        // @notice Gets a program's asm size.
+        // Reverts if program is not active.
+        // @return size the size in bytes
+        function codehashAsmSize(
+            bytes32 codehash
+        ) external view returns (uint32 size);
 
-        /// Returns the page ramp parameter.
-        function pageRamp() external view returns (uint64);
+        // @notice Gets the stylus version the program was most recently activated against
+        // @return version the program version (reverts for EVM contracts)
+        function programVersion(
+            address program
+        ) external view returns (uint16 version);
 
-        /// Returns the WASM page limit.
-        function pageLimit() external view returns (uint16);
+        // @notice Gets the cost to invoke the program
+        // @return gas the amount of gas
+        // @return gasWhenCached the amount of gas if the program was recently used
+        function programInitGas(
+            address program
+        ) external view returns (uint64 gas, uint64 gasWhenCached);
 
-        /// Returns the minimum init gas (gas, cachedGas).
-        function minInitGas() external view returns (uint64, uint64);
+        // @notice Gets the memory footprint of the program at the given address in pages
+        // @return footprint the memory footprint of program in pages (reverts for EVM contracts)
+        function programMemoryFootprint(
+            address program
+        ) external view returns (uint16 footprint);
 
-        /// Returns the init cost scalar (percentage).
-        function initCostScalar() external view returns (uint64);
+        // @notice Gets the amount of time remaining until the program expires
+        // @return _secs the time left in seconds (reverts for EVM contracts)
+        function programTimeLeft(
+            address program
+        ) external view returns (uint64 _secs);
 
-        /// Returns the number of days before inactive programs expire.
-        function expiryDays() external view returns (uint16);
+        // @notice Gets the conversion rate between gas and ink
+        // @return price the amount of ink 1 gas buys
+        function inkPrice() external view returns (uint32 price);
 
-        /// Returns the number of days a keepalive extends a program.
-        function keepaliveDays() external view returns (uint16);
+        // @notice Gets the wasm stack size limit
+        // @return depth the maximum depth (in wasm words) a wasm stack may grow
+        function maxStackDepth() external view returns (uint32 depth);
 
-        /// Returns the block cache size.
-        function blockCacheSize() external view returns (uint16);
+        // @notice Gets the number of free wasm pages a program gets
+        // @return pages the number of wasm pages (2^16 bytes)
+        function freePages() external view returns (uint16 pages);
 
-        /// Returns the Stylus version for a given codehash.
-        function codehashVersion(bytes32 codehash) external view returns (uint16);
+        // @notice Gets the base cost of each additional wasm page (2^16 bytes)
+        // @return gas base amount of gas needed to grow another wasm page
+        function pageGas() external view returns (uint16 gas);
 
-        /// Returns the compiled ASM size for a given codehash.
-        function codehashAsmSize(bytes32 codehash) external view returns (uint32);
+        // @notice Gets the ramp that drives exponential memory costs
+        // @return ramp bits representing the floating point value
+        function pageRamp() external view returns (uint64 ramp);
 
-        /// Returns the Stylus version of a deployed program.
-        function programVersion(address program) external view returns (uint16);
+        // @notice Gets the maximum number of pages a wasm may allocate
+        // @return limit the number of pages
+        function pageLimit() external view returns (uint16 limit);
 
-        /// Returns the init gas for a deployed program (gas, cachedGas).
-        function programInitGas(address program) external view returns (uint64, uint64);
+        // @notice Gets the minimum costs to invoke a program
+        // @return gas amount of gas in increments of 256 when not cached
+        // @return cached amount of gas in increments of 64 when cached
+        function minInitGas() external view returns (uint64 gas, uint64 cached);
 
-        /// Returns the memory footprint (pages) of a deployed program.
-        function programMemoryFootprint(address program) external view returns (uint16);
+        // @notice Gets the linear adjustment made to program init costs.
+        // @return percent the adjustment (100% = no adjustment).
+        function initCostScalar() external view returns (uint64 percent);
 
-        /// Returns the remaining time (seconds) before a program expires.
-        function programTimeLeft(address program) external view returns (uint64);
+        // @notice Gets the number of days after which programs deactivate
+        // @return _days the number of days
+        function expiryDays() external view returns (uint16 _days);
 
-        /// Activates a Stylus program. Returns (version, dataFee).
-        function activateProgram(address program)
-            external
-            payable
-            returns (uint16, uint256);
+        // @notice Gets the age a program must be to perform a keepalive
+        // @return _days the number of days
+        function keepaliveDays() external view returns (uint16 _days);
 
-        /// Extends the lifetime of a cached codehash.
-        function codehashKeepalive(bytes32 codehash) external payable;
+        // @notice Gets the number of extra programs ArbOS caches during a given block.
+        // @return count the number of same-block programs.
+        function blockCacheSize() external view returns (uint16 count);
+
+        // @notice Gets the constant gas charge applied before each stylus contract activation.
+        // @notice Available in ArbOS version 60 and above
+        // @return gas the activation gas charge
+        function activationGas() external view returns (uint64 gas);
+
+        event ProgramActivated(
+            bytes32 indexed codehash,
+            bytes32 moduleHash,
+            address program,
+            uint256 dataFee,
+            uint16 version
+        );
+        event ProgramLifetimeExtended(bytes32 indexed codehash, uint256 dataFee);
+
+        error ProgramNotWasm();
+        error ProgramNotActivated();
+        error ProgramNeedsUpgrade(uint16 version, uint16 stylusVersion);
+        error ProgramExpired(uint64 ageInSeconds);
+        error ProgramUpToDate();
+        error ProgramKeepaliveTooSoon(uint64 ageInSeconds);
+        error ProgramInsufficientValue(uint256 have, uint256 want);
     }
 }

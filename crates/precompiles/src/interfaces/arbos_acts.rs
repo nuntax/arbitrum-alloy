@@ -9,32 +9,37 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbosActs.go`.
     #[sol(rpc)]
     interface ArbosActs {
-        /// Marks the start of a new L2 block.
+        /*
+         * @notice ArbOS "calls" this when starting a block
+         * @param l1BaseFee the L1 BaseFee
+         * @param l1BlockNumber the L1 block number
+         * @param timePassed number of seconds since the last block
+         */
         function startBlock(
             uint256 l1BaseFee,
             uint64 l1BlockNumber,
             uint64 l2BlockNumber,
-            uint64 timeLastBlock
+            uint64 timePassed
         ) external;
 
-        /// Reports batch posting costs (legacy V1 format).
         function batchPostingReport(
             uint256 batchTimestamp,
             address batchPosterAddress,
             uint64 batchNumber,
-            uint64 batchGas,
+            uint64 batchDataGas,
             uint256 l1BaseFeeWei
         ) external;
 
-        /// Reports batch posting costs (V2 format with detailed calldata stats).
         function batchPostingReportV2(
             uint256 batchTimestamp,
             address batchPosterAddress,
             uint64 batchNumber,
-            uint64 batchCallDataLength,
-            uint64 batchCallDataNonZeros,
+            uint64 batchCalldataLength,
+            uint64 batchCalldataNonZeros,
             uint64 batchExtraGas,
             uint256 l1BaseFeeWei
         ) external;
+
+        error CallerNotArbOS();
     }
 }

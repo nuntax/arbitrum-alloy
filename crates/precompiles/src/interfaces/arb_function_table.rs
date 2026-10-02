@@ -6,16 +6,17 @@ alloy_core::sol! {
     /// Nitro reference: `nitro/precompiles/ArbFunctionTable.go`.
     #[sol(rpc)]
     interface ArbFunctionTable {
-        /// Returns the function table size for an account.
-        function size(address account) external view returns (uint256);
+        // @notice Reverts since the table is empty
+        function upload(
+            bytes calldata buf
+        ) external;
 
-        /// Uploads a function table.
-        function upload(bytes calldata buf) external;
+        // @notice Returns the empty table's size, which is 0
+        function size(
+            address addr
+        ) external view returns (uint256);
 
-        /// Returns function table entry: (functionSize, isPayable, functionId).
-        function get(address account, uint256 index)
-            external
-            view
-            returns (uint256, bool, uint256);
+        // @notice No-op
+        function get(address addr, uint256 index) external view returns (uint256, bool, uint256);
     }
 }

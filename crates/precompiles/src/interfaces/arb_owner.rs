@@ -66,6 +66,7 @@ alloy_core::sol! {
         function setWasmKeepaliveDays(uint16 keepaliveDays) external;
         function setWasmBlockCacheSize(uint16 count) external;
         function setWasmMaxSize(uint32 maxWasmSize) external;
+        function setWasmActivationGas(uint64 gas) external;
         function addWasmCacheManager(address manager) external;
         function removeWasmCacheManager(address manager) external;
         function setMaxStylusContractFragments(uint8 maxFragments) external;

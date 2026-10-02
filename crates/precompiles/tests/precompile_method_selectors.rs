@@ -759,6 +759,13 @@ fn arb_owner_method_selectors() {
         "setWasmMaxSize(uint32)",
         [0x45, 0x5e, 0xc2, 0xeb]
     );
+    assert_method!(
+        ArbOwner,
+        ArbOwnerCalls,
+        setWasmActivationGasCall,
+        "setWasmActivationGas(uint64)",
+        [0xa0, 0xa3, 0x24, 0x97]
+    );
     // Not present in Arbiscan selector TSV for this exact signature.
     assert_method!(
         ArbOwner,
@@ -1158,6 +1165,13 @@ fn arb_wasm_method_selectors() {
         blockCacheSizeCall,
         "blockCacheSize()",
         [0x7a, 0xf6, 0xe8, 0x19]
+    );
+    assert_method!(
+        ArbWasm,
+        ArbWasmCalls,
+        activationGasCall,
+        "activationGas()",
+        [0x22, 0x78, 0xc2, 0x78]
     );
     assert_method!(
         ArbWasm,

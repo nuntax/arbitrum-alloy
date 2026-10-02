@@ -42,6 +42,9 @@ alloy_core::sol! {
         /// Returns the block cache size.
         function blockCacheSize() external view returns (uint16);
 
+        /// Returns the gas burned up front by every Stylus activation (ArbOS 59).
+        function activationGas() external view returns (uint64);
+
         /// Returns the Stylus version for a given codehash.
         function codehashVersion(bytes32 codehash) external view returns (uint16);
 
